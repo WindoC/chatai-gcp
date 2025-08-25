@@ -46,9 +46,34 @@ Conversations in Firestore follow this structure:
 - `/chat/{conversation_id}` - Continue existing conversations
 - `/conversations` - CRUD operations and bulk delete
 
-## Development Commands
+## Development Phases
 
-Since this project hasn't been implemented yet, typical commands would be:
+This project follows a 4-phase development approach:
+
+### Phase 1: Design and Documentation ✅
+- Complete design documents (DESIGN.md, API.md, PLAN.md)
+- Project structure and architecture planning
+- Git repository setup with proper documentation
+
+### Phase 2: Core Logic, API and Basic Chat (No Auth)
+- FastAPI backend with Gemini API integration
+- React frontend with streaming chat interface
+- Basic Firestore conversation storage
+- No authentication required for this phase
+
+### Phase 3: Authentication and Conversation Management
+- JWT-based single-user authentication system
+- Complete conversation CRUD operations
+- Conversation history, starring, and bulk delete
+- Protected API endpoints with middleware
+
+### Phase 4: End-to-End AES Encryption
+- Web Crypto API implementation on frontend
+- Python cryptography on backend
+- Zero-knowledge encryption where server never sees plaintext
+- AES-256-GCM with random IV per message
+
+## Development Commands
 
 **Frontend (React)**:
 - `npm install` - Install dependencies
@@ -66,12 +91,25 @@ Since this project hasn't been implemented yet, typical commands would be:
 **Deployment**:
 - `gcloud app deploy` - Deploy to Google App Engine
 
-## Future Phase 2 Features
+## Phase-Specific Implementation Notes
 
-The codebase is planned to support end-to-end AES encryption:
-- Frontend: Web Crypto API with AES-GCM
-- Backend: Python cryptography library
-- AES key management via environment variables and LocalStorage
+### Phase 2 Focus Areas
+- Server-Sent Events (SSE) for streaming AI responses
+- Firestore schema implementation with proper indexing
+- React components with TailwindCSS ChatGPT-inspired UI
+- Markdown rendering with syntax highlighting
+
+### Phase 3 Security Implementation
+- Environment-based credentials (USERNAME, PASSWORD_HASH)
+- JWT access (30min) and refresh tokens (7 days)
+- Rate limiting on authentication endpoints
+- CORS and security headers configuration
+
+### Phase 4 Encryption Details
+- AES-256-GCM encryption with Web Crypto API
+- PBKDF2 key derivation from user passphrase
+- SHA256 key validation between frontend/backend
+- Base64 transport encoding for encrypted payloads
 
 ## Environment Variables
 
