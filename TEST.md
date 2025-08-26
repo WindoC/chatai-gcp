@@ -51,13 +51,13 @@ Choose one of these approaches:
 cd backend
 
 # Create virtual environment (recommended)
-python -m venv venv
+python -m venv .venv
 
 # Activate virtual environment
 # Windows:
-venv\Scripts\activate
+.venv\Scripts\activate
 # macOS/Linux:
-source venv/bin/activate
+source .venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
@@ -98,7 +98,7 @@ ENCRYPTION_ENABLED=false
 ```bash
 # Install and authenticate with gcloud (for Firestore access)
 gcloud auth login
-gcloud config set project YOUR_PROJECT_ID
+gcloud config set project chat-470206
 
 # Set up application default credentials
 gcloud auth application-default login
@@ -451,7 +451,7 @@ async def cleanup_database():
 ```bash
 # Start backend (terminal 1)
 cd backend
-source venv/bin/activate  # or venv\Scripts\activate on Windows
+source .venv/bin/activate  # or .venv\Scripts\activate on Windows
 uvicorn main:app --reload
 
 # Start frontend (terminal 2)
@@ -634,8 +634,8 @@ pip install --force-reinstall -r requirements.txt
 ```bash
 # Recreate virtual environment
 rm -rf venv
-python -m venv venv
-source venv/bin/activate  # or venv\Scripts\activate
+python -m venv .venv
+source .venv/bin/activate  # or .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
