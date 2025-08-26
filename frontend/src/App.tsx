@@ -4,10 +4,13 @@ import { ChatInput } from './components/ChatInput';
 import { ConversationSidebar } from './components/ConversationSidebar';
 import { ThemeToggle } from './components/ThemeToggle';
 import { EditableTitle } from './components/EditableTitle';
+import { ProtectedRoute } from './components/ProtectedRoute';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { apiService } from './services/api';
 import { Message, ConversationSummary, SSEEvent } from './types';
 
-function App() {
+function ChatInterface() {
+  const { logout } = useAuth();
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [currentConversation, setCurrentConversation] = useState<string | null>(null);
   const [currentConversationTitle, setCurrentConversationTitle] = useState<string | null>(null);
@@ -294,6 +297,15 @@ function App() {
                 </button>
               )}
               <ThemeToggle />
+              <button
+                onClick={logout}
+                className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                title="Logout"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+              </button>
             </div>
           </div>
         </header>
@@ -372,6 +384,16 @@ function App() {
         />
       </div>
     </div>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <ProtectedRoute>
+        <ChatInterface />
+      </ProtectedRoute>
+    </AuthProvider>
   );
 }
 
