@@ -47,27 +47,60 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
+  background: #f1f5f9;
   border-radius: 3px;
 }
 
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+  transition: background-color 0.2s ease;
+}
+
 ::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
+  background: #94a3b8;
 }
 
 /* Dark mode scrollbar */
 .dark ::-webkit-scrollbar-track {
-  background: #2d3748;
+  background: #1e293b;
 }
 
 .dark ::-webkit-scrollbar-thumb {
-  background: #4a5568;
+  background: #475569;
 }
 
 .dark ::-webkit-scrollbar-thumb:hover {
-  background: #718096;
+  background: #64748b;
+}
+
+/* Smooth transitions for theme changes */
+* {
+  transition-property: color, background-color, border-color;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 200ms;
+}
+
+/* Focus styles */
+.focus-visible {
+  outline: 2px solid theme(colors.primary.500);
+  outline-offset: 2px;
+}
+
+/* Selection color */
+::selection {
+  background-color: theme(colors.primary.500);
+  color: white;
+}
+
+.dark ::selection {
+  background-color: theme(colors.primary.400);
+  color: theme(colors.gray.900);
+}
+
+/* Hide mobile menu button when sidebar is open */
+@media (max-width: 768px) {
+  .sidebar-open .mobile-menu-button {
+    display: none;
+  }
 }

@@ -37,9 +37,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   }, [message]);
 
   return (
-    <div className="border-t border-gray-200 bg-white p-4">
+    <div className="border-t border-gray-200 dark:border-gray-700 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm p-6 transition-colors duration-200">
       <form onSubmit={handleSubmit} className="max-w-4xl mx-auto">
-        <div className="flex items-end space-x-3">
+        <div className="flex items-end space-x-4">
           <div className="flex-1 relative">
             <textarea
               ref={textareaRef}
@@ -50,14 +50,17 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               disabled={disabled}
               rows={1}
               className="
-                w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg
-                focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
-                disabled:bg-gray-100 disabled:cursor-not-allowed
-                resize-none overflow-hidden min-h-[48px] max-h-[200px]
+                w-full px-4 py-4 pr-32 border border-gray-300 dark:border-gray-600 rounded-2xl
+                bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100
+                placeholder-gray-500 dark:placeholder-gray-400
+                focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent
+                disabled:bg-gray-100 dark:disabled:bg-gray-700 disabled:cursor-not-allowed
+                resize-none overflow-hidden min-h-[56px] max-h-[200px] shadow-soft
+                transition-all duration-200
               "
-              style={{ minHeight: '48px' }}
+              style={{ minHeight: '56px' }}
             />
-            <div className="absolute right-3 bottom-3 text-xs text-gray-400">
+            <div className="absolute right-4 bottom-4 text-xs text-gray-500 dark:text-gray-400">
               {disabled ? 'Sending...' : 'Enter to send, Shift+Enter for new line'}
             </div>
           </div>
@@ -66,10 +69,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             type="submit"
             disabled={disabled || !message.trim()}
             className="
-              px-6 py-3 bg-blue-600 text-white rounded-lg font-medium
-              hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500
-              disabled:bg-gray-300 disabled:cursor-not-allowed
-              transition-colors duration-200
+              px-6 py-4 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-2xl font-medium
+              hover:from-primary-600 hover:to-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500
+              disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed
+              transition-all duration-200 shadow-soft hover:shadow-soft-lg
+              min-h-[56px] flex items-center justify-center
             "
           >
             {disabled ? (
