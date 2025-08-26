@@ -78,7 +78,6 @@ function App() {
       eventSourceRef.current = eventSource;
 
       let aiMessageContent = '';
-      let finalConversationId = currentConversation;
 
       eventSource.onmessage = (event) => {
         try {
@@ -98,7 +97,6 @@ function App() {
 
             case 'done':
               if (data.conversation_id) {
-                finalConversationId = data.conversation_id;
                 setCurrentConversation(data.conversation_id);
               }
 

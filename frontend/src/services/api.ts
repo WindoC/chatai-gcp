@@ -87,11 +87,39 @@ export class APIService {
     const reader = response.body?.getReader();
     const decoder = new TextDecoder();
     
-    const eventSource = new EventTarget() as EventSource & EventTarget;
-    eventSource.readyState = EventSource.OPEN;
-    eventSource.close = () => {
-      eventSource.readyState = EventSource.CLOSED;
-      reader?.cancel();
+    // Create a custom EventSource implementation
+    const eventTarget = new EventTarget();
+    let readyState: number = EventSource.OPEN;
+    
+    const customEventSource = {
+      ...eventTarget,
+      get readyState() { return readyState; },
+      close: () => {
+        readyState = EventSource.CLOSED;
+        reader?.cancel();
+      },
+      addEventListener: eventTarget.addEventListener.bind(eventTarget),
+      removeEventListener: eventTarget.removeEventListener.bind(eventTarget),
+      dispatchEvent: (event: Event) => {
+        const result = eventTarget.dispatchEvent(event);
+        // Forward to event handler properties
+        if (event.type === 'message' && customEventSource.onmessage) {
+          customEventSource.onmessage(event as MessageEvent);
+        } else if (event.type === 'error' && customEventSource.onerror) {
+          customEventSource.onerror(event);
+        } else if (event.type === 'open' && customEventSource.onopen) {
+          customEventSource.onopen(event);
+        }
+        return result;
+      },
+      onmessage: null as ((event: MessageEvent) => void) | null,
+      onerror: null as ((event: Event) => void) | null,
+      onopen: null as ((event: Event) => void) | null,
+      url: '',
+      withCredentials: false,
+      CONNECTING: EventSource.CONNECTING,
+      OPEN: EventSource.OPEN,
+      CLOSED: EventSource.CLOSED,
     };
 
     // Process the stream
@@ -112,21 +140,21 @@ export class APIService {
             if (line.startsWith('data: ')) {
               const data = line.slice(6);
               const event = new MessageEvent('message', { data });
-              eventSource.dispatchEvent(event);
+              customEventSource.dispatchEvent(event);
             }
           }
         }
         
-        eventSource.readyState = EventSource.CLOSED;
+        readyState = EventSource.CLOSED;
       } catch (error) {
         console.error('Stream reading error:', error);
         const errorEvent = new Event('error');
-        eventSource.dispatchEvent(errorEvent);
-        eventSource.readyState = EventSource.CLOSED;
+        customEventSource.dispatchEvent(errorEvent);
+        readyState = EventSource.CLOSED;
       }
     })();
 
-    return eventSource as EventSource;
+    return customEventSource as EventSource;
   }
 }
 
