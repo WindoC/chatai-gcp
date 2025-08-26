@@ -296,7 +296,7 @@ class FirestoreService:
                 data = doc.to_dict()
                 # Consider conversation non-starred if starred is False, None, or missing
                 is_starred = data.get("starred", False)
-                if not is_starred:
+                if is_starred != True:  # More explicit check - only keep if explicitly True
                     non_starred_docs.append(doc)
             
             logger.info(f"Found {len(non_starred_docs)} non-starred conversations to delete")

@@ -142,6 +142,30 @@ async def rename_conversation(conversation_id: str, rename_request: RenameReques
         raise HTTPException(status_code=500, detail="Failed to rename conversation")
 
 
+@router.delete("/nonstarred", response_model=APIResponse)
+async def bulk_delete_nonstarred():
+    """
+    Bulk delete all non-starred conversations
+    
+    Returns:
+        APIResponse: Success response with count of deleted conversations
+    """
+    try:
+        logger.info("Bulk deleting non-starred conversations")
+        
+        deleted_count = await firestore_service.bulk_delete_nonstarred()
+        
+        return APIResponse(
+            success=True,
+            data={"deleted_count": deleted_count},
+            message=f"Deleted {deleted_count} non-starred conversations"
+        )
+        
+    except Exception as e:
+        logger.error(f"Error bulk deleting non-starred conversations: {e}")
+        raise HTTPException(status_code=500, detail="Failed to bulk delete conversations")
+
+
 @router.delete("/{conversation_id}", response_model=APIResponse)
 async def delete_conversation(conversation_id: str):
     """
@@ -170,27 +194,3 @@ async def delete_conversation(conversation_id: str):
     except Exception as e:
         logger.error(f"Error deleting conversation {conversation_id}: {e}")
         raise HTTPException(status_code=500, detail="Failed to delete conversation")
-
-
-@router.delete("/nonstarred", response_model=APIResponse)
-async def bulk_delete_nonstarred():
-    """
-    Bulk delete all non-starred conversations
-    
-    Returns:
-        APIResponse: Success response with count of deleted conversations
-    """
-    try:
-        logger.info("Bulk deleting non-starred conversations")
-        
-        deleted_count = await firestore_service.bulk_delete_nonstarred()
-        
-        return APIResponse(
-            success=True,
-            data={"deleted_count": deleted_count},
-            message=f"Deleted {deleted_count} non-starred conversations"
-        )
-        
-    except Exception as e:
-        logger.error(f"Error bulk deleting non-starred conversations: {e}")
-        raise HTTPException(status_code=500, detail="Failed to bulk delete conversations")

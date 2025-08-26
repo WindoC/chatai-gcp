@@ -68,9 +68,11 @@ export class APIService {
     const response = await fetch(`${API_BASE_URL}/api/conversations/nonstarred`, {
       method: 'DELETE',
     });
+    
     if (!response.ok) {
       throw new Error('Failed to bulk delete conversations');
     }
+    
     const data = await response.json();
     return data.data.deleted_count;
   }
