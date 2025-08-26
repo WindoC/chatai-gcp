@@ -365,6 +365,40 @@ logs/
 *.backup
 *~
 
+# ChatAI-GCP specific exclusions
+PRD.md
+DESIGN.md
+PLAN.md
+TEST.md
+CLAUDE.md
+
+# Frontend development files (source code not needed in production)
+frontend/src/
+frontend/public/
+frontend/package*.json
+frontend/tsconfig.json
+frontend/tailwind.config.js
+frontend/postcss.config.js
+
+# Backend development files
+backend/tests/
+backend/pytest.ini
+backend/__init__.py
+
+# Phase 4 encryption development (when implemented)
+encryption-keys/
+*.aes
+*.encrypted
+key-generation-tools/
+
+# Firebase configuration (keep firebase.json if needed)
+firestore.rules
+firestore.indexes.json
+
+# Google Cloud debug files
+*.debug.log
+gcloud-debug.log
+
 # ============================================================================
 # OPTIONAL: Uncomment these if you want to exclude them
 # ============================================================================

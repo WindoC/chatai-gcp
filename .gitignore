@@ -466,6 +466,30 @@ auto-generated/
 *.bak
 *~
 
+# Frontend production build (should be generated, not committed)
+frontend/build/
+
+# Debug logs
+debug.log
+*.debug.log
+
+# Google AI Studio API keys and service accounts
+service-account*.json
+google-credentials*.json
+gemini-api-key*
+*-credentials.json
+
+# Firebase emulator data
+firebase-debug.log
+firestore-debug.log
+.firebase/
+ui-debug.log
+
+# Phase 4 encryption keys (when implemented)
+encryption-keys/
+*.aes
+*.encrypted
+
 # ============================================================================
 # Security & Compliance
 # ============================================================================
