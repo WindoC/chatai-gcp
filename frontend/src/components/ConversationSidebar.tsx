@@ -181,10 +181,10 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
           </div>
 
           {/* Footer */}
-          <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="p-6 border-t border-gray-200 dark:border-gray-700">
             <button
               onClick={() => setShowBulkDeleteConfirm(true)}
-              className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors"
+              className="w-full px-4 py-4 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors min-h-[56px] flex items-center justify-center"
               disabled={unstarredConversations.length === 0}
             >
               <span className="flex items-center justify-center space-x-2">
