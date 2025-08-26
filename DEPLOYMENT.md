@@ -93,6 +93,21 @@ env_variables:
   GOOGLE_CLOUD_PROJECT: "YOUR_PROJECT_ID_HERE"
   DEBUG: "false"
   FIRESTORE_DATABASE: "(default)"
+  
+  # Phase 3 Authentication - REQUIRED
+  JWT_SECRET_KEY: "YOUR_STRONG_JWT_SECRET_KEY_HERE"
+  JWT_ACCESS_EXPIRE_MINUTES: "30"
+  JWT_REFRESH_EXPIRE_DAYS: "7"
+  USERNAME: "admin"
+  PASSWORD_HASH: "YOUR_SHA256_PASSWORD_HASH_HERE"
+  
+  # Security Settings
+  AUTH_RATE_LIMIT: "10"
+  CHAT_RATE_LIMIT: "30"
+  
+  # Phase 4 Encryption (Optional)
+  AES_KEY_HASH: "YOUR_AES_KEY_HASH_FOR_PHASE_4"
+  ENCRYPTION_ENABLED: "false"
 
 handlers:
   # Serve the React build files
@@ -110,7 +125,12 @@ handlers:
     upload: frontend/build/manifest.json
     secure: always
 
-  # API routes
+  # Authentication routes
+  - url: /auth/.*
+    script: auto
+    secure: always
+
+  # API routes  
   - url: /api/.*
     script: auto
     secure: always
@@ -190,14 +210,44 @@ gcloud app deploy
 ```
 
 ### 4.2 Set Environment Variables (Secure Method)
-Instead of putting secrets in app.yaml, use Google Cloud Console:
+Instead of putting secrets in app.yaml, use Google Cloud Console or Secret Manager:
 
+**Option A: App Engine Environment Variables**
 1. Go to [App Engine Settings](https://console.cloud.google.com/appengine/settings)
 2. Click on "Environment Variables"
 3. Add the following variables:
    - `GOOGLE_API_KEY`: Your Gemini API key
    - `GOOGLE_CLOUD_PROJECT`: Your GCP project ID
    - `DEBUG`: `false`
+   - `JWT_SECRET_KEY`: Strong random secret (generate with `python -c "import secrets; print(secrets.token_hex(32))"`)
+   - `JWT_ACCESS_EXPIRE_MINUTES`: `30`
+   - `JWT_REFRESH_EXPIRE_DAYS`: `7`
+   - `USERNAME`: Your login username (e.g., `admin`)
+   - `PASSWORD_HASH`: SHA256 hash of your password (generate with `python -c "import hashlib; print(hashlib.sha256('your_password'.encode()).hexdigest())"`)
+   - `AUTH_RATE_LIMIT`: `10`
+   - `CHAT_RATE_LIMIT`: `30`
+
+**Option B: Secret Manager (Recommended for Production)**
+```bash
+# Enable Secret Manager API
+gcloud services enable secretmanager.googleapis.com
+
+# Create secrets
+echo -n "your_gemini_api_key" | gcloud secrets create gemini-api-key --data-file=-
+echo -n "your_jwt_secret" | gcloud secrets create jwt-secret-key --data-file=-
+echo -n "your_password_hash" | gcloud secrets create password-hash --data-file=-
+
+# Grant App Engine access to secrets
+gcloud secrets add-iam-policy-binding gemini-api-key --member="serviceAccount:YOUR_PROJECT_ID@appspot.gserviceaccount.com" --role="roles/secretmanager.secretAccessor"
+gcloud secrets add-iam-policy-binding jwt-secret-key --member="serviceAccount:YOUR_PROJECT_ID@appspot.gserviceaccount.com" --role="roles/secretmanager.secretAccessor"
+gcloud secrets add-iam-policy-binding password-hash --member="serviceAccount:YOUR_PROJECT_ID@appspot.gserviceaccount.com" --role="roles/secretmanager.secretAccessor"
+```
+
+**⚠️ Security Notes:**
+- Never commit secrets to version control
+- Use strong, unique passwords and JWT secrets
+- Regularly rotate authentication credentials
+- Monitor access logs for suspicious activity
 
 Then update app.yaml to remove the env_variables section.
 
@@ -238,11 +288,27 @@ gcloud logging sinks create chatai-gcp \
 # Get app URL
 gcloud app browse
 
-# Test health endpoint
+# Test health endpoint (public)
 curl https://YOUR_PROJECT_ID.appspot.com/health
 
-# Test API documentation
+# Test authentication endpoint
+curl -X POST https://YOUR_PROJECT_ID.appspot.com/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "admin", "password": "your_password"}'
+
+# Test protected endpoint (should return 401 without auth)
+curl https://YOUR_PROJECT_ID.appspot.com/api/conversations/
+
+# Test protected endpoint with authentication
+# First get token from login response above, then:
+curl -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+     https://YOUR_PROJECT_ID.appspot.com/api/conversations/
+
+# Test API documentation (protected)
 open https://YOUR_PROJECT_ID.appspot.com/docs
+
+# Test the web application (should show login screen)
+open https://YOUR_PROJECT_ID.appspot.com/
 ```
 
 ### 6.2 Check Logs
@@ -295,20 +361,27 @@ gcloud app versions delete BAD_VERSION_ID
 - No public access to backend files
 
 ### 7.2 Firestore Security Rules
-Set up Firestore security rules (currently open for Phase 2):
+**For Phase 3 with Authentication:**
 
+Update `firestore.rules`:
 ```javascript
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Phase 2: Allow all reads/writes (no auth yet)
-    match /{document=**} {
+    // Phase 3: Production rules with security
+    // Note: App Engine uses service account authentication, not user auth tokens
+    // So we allow access to authenticated service account (the application itself)
+    
+    match /conversations/{conversationId} {
+      // Allow application service account to read/write conversations
       allow read, write: if true;
     }
     
-    // Phase 3: Add authentication rules
+    // For Phase 4+ with user-level authentication:
+    // You would implement custom claims or additional validation
     // match /conversations/{conversationId} {
-    //   allow read, write: if request.auth != null;
+    //   allow read, write: if request.auth != null && 
+    //                          request.auth.uid == resource.data.userId;
     // }
   }
 }
@@ -318,7 +391,16 @@ Apply rules:
 ```bash
 # Deploy Firestore rules
 gcloud firestore rules deploy firestore.rules
+
+# Test rules (optional)
+firebase emulators:start --only firestore
 ```
+
+**Security Notes for Phase 3:**
+- Application-level authentication (JWT) protects API endpoints
+- Firestore access is through service account (backend only)
+- No direct client-side Firestore access
+- All data access goes through authenticated API endpoints
 
 ## Troubleshooting
 
@@ -351,6 +433,30 @@ gcloud app deploy --promote --stop-previous-version
 - Ensure billing is enabled on the GCP project
 - Check quotas in GCP Console → IAM & Admin → Quotas
 - Monitor usage in App Engine → Dashboard
+
+**Authentication Issues:**
+```bash
+# Check if JWT_SECRET_KEY is set
+gcloud app versions describe VERSION_ID --service=default
+
+# Test login endpoint directly
+curl -X POST https://YOUR_PROJECT_ID.appspot.com/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "admin", "password": "your_password"}' \
+  -v
+
+# Check authentication logs
+gcloud app logs tail -s default --filter="auth"
+
+# Verify password hash is correct
+python -c "import hashlib; print(hashlib.sha256('your_password'.encode()).hexdigest())"
+```
+
+**Common Auth Errors:**
+- `401 Unauthorized`: Check username/password and JWT_SECRET_KEY
+- `500 Internal Server Error`: Check environment variables are set
+- `422 Validation Error`: Check request format and required fields
+- `429 Too Many Requests`: Rate limiting is working (wait or increase limits)
 
 ### Performance Optimization
 

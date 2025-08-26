@@ -2,16 +2,20 @@
 
 A secure AI chat web application powered by Google Gemini, built with FastAPI and React.
 
-## 🎉 Phase 2 Complete - Working Chat Application!
+## 🎉 Phase 3 Complete - Secure Chat with Authentication!
 
-**Current Status:** Fully functional chat application with AI streaming responses
+**Current Status:** Fully secure chat application with JWT authentication and complete conversation management
 
 ✅ **Working Features:**
 - **Real-time AI Chat**: Streaming responses from Google Gemini AI
+- **Secure Authentication**: JWT-based single-user login with token refresh
+- **Protected Routes**: All chat and conversation endpoints require authentication
 - **Modern UI**: React frontend with TailwindCSS and ChatGPT-inspired design
-- **Conversation Persistence**: Messages stored in Google Firestore
+- **Complete Conversation Management**: CRUD, starring, bulk delete, title editing
+- **Conversation Persistence**: Messages stored securely in Google Firestore
+- **Security Headers**: CSP, HSTS, XSS protection, and rate limiting
 - **Markdown Support**: Rich text rendering with syntax highlighting for code
-- **Responsive Design**: Mobile-friendly interface
+- **Responsive Design**: Mobile-friendly interface with login screen
 - **Server-Sent Events**: Real-time streaming without polling
 - **Custom EventSource**: Robust streaming implementation with error handling
 - **TypeScript**: Full type safety throughout the application
@@ -19,13 +23,17 @@ A secure AI chat web application powered by Google Gemini, built with FastAPI an
 **Demo:** 
 - Backend running at `http://localhost:8000`
 - Frontend running at `http://localhost:3000`
-- Send a message and see AI respond in real-time!
+- Login with your credentials to access the secure chat interface
+- Create conversations, star favorites, and manage your chat history
+- Send messages and see AI respond in real-time with full authentication!
 
 ## Architecture
 
 - **Backend**: FastAPI (Python 3.13) with Google Gemini API
+- **Authentication**: JWT tokens with refresh mechanism
 - **Frontend**: React with TypeScript and TailwindCSS
 - **Database**: Google Firestore Native
+- **Security**: Rate limiting, security headers, protected endpoints
 - **Deployment**: Google App Engine Standard
 - **Streaming**: Server-Sent Events (SSE) for real-time AI responses
 
@@ -47,9 +55,13 @@ A secure AI chat web application powered by Google Gemini, built with FastAPI an
 cd backend
 pip install -r requirements.txt
 
-# Set up your Google API key
+# Set up environment variables
 cp .env.example .env
-# Edit .env and add your GOOGLE_API_KEY
+# Edit .env and configure:
+# - GOOGLE_API_KEY: Your Gemini API key
+# - JWT_SECRET_KEY: Generate with: python -c "import secrets; print(secrets.token_hex(32))"
+# - USERNAME: Your login username (default: admin)
+# - PASSWORD_HASH: SHA256 hash of your password (default hash is for "secret123")
 
 # Start backend server
 uvicorn main:app --reload
@@ -66,10 +78,16 @@ npm start
 # Frontend will be available at http://localhost:3000
 ```
 
-### 3. Test the Chat
+### 3. Test the Secure Chat
 1. Open `http://localhost:3000`
-2. Type a message: "Hello, who are you?"
-3. Watch the AI respond in real-time!
+2. **Login** with default credentials:
+   - Username: `admin`
+   - Password: `secret123`
+3. Create a new conversation and type: "Hello, who are you?"
+4. Watch the AI respond in real-time!
+5. Try starring conversations, editing titles, and bulk delete features
+
+**⚠️ Security Note:** Change the default password hash in production! The default PASSWORD_HASH in `.env.example` corresponds to "secret123".
 
 ## Detailed Development Setup
 

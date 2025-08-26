@@ -83,12 +83,18 @@ GOOGLE_CLOUD_PROJECT=your_project_id
 DEBUG=true
 FIRESTORE_DATABASE=(default)
 
-# Optional for local development
-JWT_SECRET_KEY=your_local_jwt_secret_for_testing
+# REQUIRED for Phase 3 - Authentication
+JWT_SECRET_KEY=your_local_jwt_secret_for_testing_generate_with_secrets_token_hex_32
+JWT_ACCESS_EXPIRE_MINUTES=30
+JWT_REFRESH_EXPIRE_DAYS=7
 USERNAME=admin
-PASSWORD_HASH=5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8  # "password"
+PASSWORD_HASH=ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f  # "secret123"
 
-# Phase 4 settings (not needed for Phase 2)
+# Rate limiting
+AUTH_RATE_LIMIT=10
+CHAT_RATE_LIMIT=30
+
+# Phase 4 settings (not needed for Phase 3)
 AES_KEY_HASH=example_hash
 ENCRYPTION_ENABLED=false
 ```
@@ -345,14 +351,61 @@ from main import app
 def client():
     return TestClient(app)
 
-def test_full_chat_flow(client):
-    """Test complete chat flow"""
-    # Start new chat
-    response = client.post("/api/chat/", json={"message": "Hello"})
+@pytest.fixture
+def auth_headers(client):
+    """Get authentication headers for testing"""
+    # Login to get JWT token
+    response = client.post("/auth/login", json={
+        "username": "admin", 
+        "password": "secret123"
+    })
+    assert response.status_code == 200
+    tokens = response.json()
+    return {"Authorization": f"Bearer {tokens['access_token']}"}
+
+def test_authentication_flow(client):
+    """Test complete authentication flow"""
+    # Test login
+    response = client.post("/auth/login", json={
+        "username": "admin", 
+        "password": "secret123"
+    })
+    assert response.status_code == 200
+    tokens = response.json()
+    assert "access_token" in tokens
+    assert "refresh_token" in tokens
+    
+    # Test accessing protected endpoint
+    headers = {"Authorization": f"Bearer {tokens['access_token']}"}
+    response = client.get("/auth/me", headers=headers)
     assert response.status_code == 200
     
-    # Verify conversations list
+    # Test token refresh
+    response = client.post("/auth/refresh", json={
+        "refresh_token": tokens["refresh_token"]
+    })
+    assert response.status_code == 200
+
+def test_protected_endpoints_require_auth(client):
+    """Test that protected endpoints require authentication"""
+    # Test chat endpoint without auth
+    response = client.post("/api/chat/", json={"message": "Hello"})
+    assert response.status_code == 401
+    
+    # Test conversations endpoint without auth
     response = client.get("/api/conversations/")
+    assert response.status_code == 401
+
+def test_full_chat_flow_with_auth(client, auth_headers):
+    """Test complete chat flow with authentication"""
+    # Start new chat with auth
+    response = client.post("/api/chat/", 
+                          json={"message": "Hello"}, 
+                          headers=auth_headers)
+    assert response.status_code == 200
+    
+    # Verify conversations list with auth
+    response = client.get("/api/conversations/", headers=auth_headers)
     assert response.status_code == 200
     conversations = response.json()["conversations"]
     assert len(conversations) >= 1
@@ -373,15 +426,40 @@ npx playwright install
 mkdir e2e
 ```
 
-Create `frontend/e2e/chat.spec.ts`:
+Create `frontend/e2e/auth.spec.ts`:
 ```typescript
 import { test, expect } from '@playwright/test';
 
-test('basic chat functionality', async ({ page }) => {
+test('authentication flow', async ({ page }) => {
   await page.goto('http://localhost:3000');
   
-  // Check welcome message
+  // Should show login page
   await expect(page.locator('text=Welcome to ChatAI-GCP')).toBeVisible();
+  await expect(page.locator('text=Sign in to start chatting')).toBeVisible();
+  
+  // Login
+  await page.fill('input[name="username"]', 'admin');
+  await page.fill('input[name="password"]', 'secret123');
+  await page.click('button[type="submit"]');
+  
+  // Should redirect to chat after login
+  await expect(page.locator('text=New Chat')).toBeVisible();
+  
+  // Test logout
+  await page.click('button[title="Logout"]');
+  await expect(page.locator('text=Sign in to start chatting')).toBeVisible();
+});
+
+test('basic chat functionality with auth', async ({ page }) => {
+  await page.goto('http://localhost:3000');
+  
+  // Login first
+  await page.fill('input[name="username"]', 'admin');
+  await page.fill('input[name="password"]', 'secret123');
+  await page.click('button[type="submit"]');
+  
+  // Wait for chat interface
+  await expect(page.locator('text=New Chat')).toBeVisible();
   
   // Send a message
   await page.fill('textarea[placeholder="Type your message..."]', 'Hello');
@@ -389,6 +467,15 @@ test('basic chat functionality', async ({ page }) => {
   
   // Wait for response
   await expect(page.locator('text=Hello')).toBeVisible();
+});
+
+test('protected routes redirect to login', async ({ page }) => {
+  // Try to access chat directly without login
+  await page.goto('http://localhost:3000');
+  
+  // Should show login instead of chat
+  await expect(page.locator('text=Sign in to start chatting')).toBeVisible();
+  await expect(page.locator('text=New Chat')).not.toBeVisible();
 });
 ```
 
@@ -566,19 +653,35 @@ from locust import HttpUser, task, between
 class ChatUser(HttpUser):
     wait_time = between(1, 3)
     
+    def on_start(self):
+        """Login and get authentication token"""
+        response = self.client.post("/auth/login", json={
+            "username": "admin",
+            "password": "secret123"
+        })
+        if response.status_code == 200:
+            tokens = response.json()
+            self.headers = {"Authorization": f"Bearer {tokens['access_token']}"}
+        else:
+            self.headers = {}
+    
     @task
     def health_check(self):
         self.client.get("/health")
     
+    @task 
+    def auth_check(self):
+        self.client.get("/auth/me", headers=self.headers)
+    
     @task
     def list_conversations(self):
-        self.client.get("/api/conversations/")
+        self.client.get("/api/conversations/", headers=self.headers)
     
     @task
     def send_message(self):
-        self.client.post("/api/chat/", json={
-            "message": "Hello, this is a test message"
-        })
+        self.client.post("/api/chat/", 
+                        json={"message": "Hello, this is a test message"},
+                        headers=self.headers)
 ```
 
 Run load tests:
