@@ -80,6 +80,7 @@ env.bak/
 venv.bak/
 backend/venv/
 backend/env/
+!.env.example
 
 # Spyder project settings
 .spyderproject
