@@ -24,6 +24,16 @@ class ChatRequest(BaseModel):
     encrypted: bool = False  # Phase 4 feature
 
 
+class StarRequest(BaseModel):
+    """Star/unstar request model"""
+    starred: bool
+
+
+class RenameRequest(BaseModel):
+    """Rename conversation request model"""
+    title: str = Field(..., min_length=1, max_length=100)
+
+
 class ChatResponse(BaseModel):
     """Chat response model"""
     success: bool = True

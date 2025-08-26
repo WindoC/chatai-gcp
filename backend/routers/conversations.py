@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Query
 from typing import Optional
 import logging
-from models import ConversationList, Conversation, APIResponse
+from models import ConversationList, Conversation, APIResponse, StarRequest, RenameRequest
 from services import firestore_service
 
 logger = logging.getLogger(__name__)
@@ -77,18 +77,19 @@ async def get_conversation(conversation_id: str):
 
 
 @router.post("/{conversation_id}/star", response_model=APIResponse)
-async def star_conversation(conversation_id: str, starred: bool = True):
+async def star_conversation(conversation_id: str, star_request: StarRequest):
     """
     Star or unstar a conversation
     
     Args:
         conversation_id: The conversation ID
-        starred: Whether to star (True) or unstar (False)
+        star_request: StarRequest containing starred boolean
         
     Returns:
         APIResponse: Success response
     """
     try:
+        starred = star_request.starred
         logger.info(f"{'Starring' if starred else 'Unstarring'} conversation: {conversation_id}")
         
         success = await firestore_service.star_conversation(conversation_id, starred)
@@ -106,6 +107,39 @@ async def star_conversation(conversation_id: str, starred: bool = True):
     except Exception as e:
         logger.error(f"Error starring conversation {conversation_id}: {e}")
         raise HTTPException(status_code=500, detail="Failed to update conversation")
+
+
+@router.patch("/{conversation_id}/title", response_model=APIResponse)
+async def rename_conversation(conversation_id: str, rename_request: RenameRequest):
+    """
+    Rename a conversation
+    
+    Args:
+        conversation_id: The conversation ID
+        rename_request: RenameRequest containing new title
+        
+    Returns:
+        APIResponse: Success response
+    """
+    try:
+        title = rename_request.title.strip()
+        logger.info(f"Renaming conversation {conversation_id} to '{title}'")
+        
+        success = await firestore_service.rename_conversation(conversation_id, title)
+        if not success:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+        
+        return APIResponse(
+            success=True,
+            data={"conversation_id": conversation_id, "title": title},
+            message="Conversation renamed successfully"
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error renaming conversation {conversation_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to rename conversation")
 
 
 @router.delete("/{conversation_id}", response_model=APIResponse)
