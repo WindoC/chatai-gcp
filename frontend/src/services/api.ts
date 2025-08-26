@@ -51,6 +51,19 @@ export class APIService {
     }
   }
 
+  async renameConversation(conversationId: string, title: string): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/api/conversations/${conversationId}/title`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ title }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to rename conversation');
+    }
+  }
+
   async bulkDeleteNonstarred(): Promise<number> {
     const response = await fetch(`${API_BASE_URL}/api/conversations/nonstarred`, {
       method: 'DELETE',
