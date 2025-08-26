@@ -4,12 +4,16 @@ interface ChatInputProps {
   onSendMessage: (message: string) => void;
   disabled?: boolean;
   placeholder?: string;
+  shouldFocus?: boolean;
+  onFocused?: () => void;
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({ 
   onSendMessage, 
   disabled = false, 
-  placeholder = "Type your message..." 
+  placeholder = "Type your message...",
+  shouldFocus = false,
+  onFocused
 }) => {
   const [message, setMessage] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -35,6 +39,13 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
     }
   }, [message]);
+
+  useEffect(() => {
+    if (shouldFocus && !disabled && textareaRef.current) {
+      textareaRef.current.focus();
+      onFocused?.();
+    }
+  }, [shouldFocus, disabled, onFocused]);
 
   return (
     <div className="border-t border-gray-200 dark:border-gray-700 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm p-6 transition-colors duration-200">

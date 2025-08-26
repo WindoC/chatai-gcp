@@ -3,16 +3,19 @@ import { ChatMessage } from './components/ChatMessage';
 import { ChatInput } from './components/ChatInput';
 import { ConversationSidebar } from './components/ConversationSidebar';
 import { ThemeToggle } from './components/ThemeToggle';
+import { EditableTitle } from './components/EditableTitle';
 import { apiService } from './services/api';
 import { Message, ConversationSummary, SSEEvent } from './types';
 
 function App() {
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [currentConversation, setCurrentConversation] = useState<string | null>(null);
+  const [currentConversationTitle, setCurrentConversationTitle] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingMessage, setStreamingMessage] = useState('');
+  const [shouldFocusInput, setShouldFocusInput] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
 
@@ -43,6 +46,7 @@ function App() {
       const conversation = await apiService.getConversation(conversationId);
       setMessages(conversation.messages);
       setCurrentConversation(conversationId);
+      setCurrentConversationTitle(conversation.title || null);
     } catch (error) {
       console.error('Failed to load conversation:', error);
     }
@@ -50,6 +54,7 @@ function App() {
 
   const startNewChat = () => {
     setCurrentConversation(null);
+    setCurrentConversationTitle(null);
     setMessages([]);
     setStreamingMessage('');
   };
@@ -98,7 +103,17 @@ function App() {
 
             case 'done':
               if (data.conversation_id) {
-                setCurrentConversation(data.conversation_id);
+                const conversationId = data.conversation_id;
+                setCurrentConversation(conversationId);
+                // Load the conversation to get the generated title
+                setTimeout(async () => {
+                  try {
+                    const conversation = await apiService.getConversation(conversationId);
+                    setCurrentConversationTitle(conversation.title || null);
+                  } catch (error) {
+                    console.error('Failed to load conversation title:', error);
+                  }
+                }, 100);
               }
 
               // Add final AI message
@@ -112,6 +127,9 @@ function App() {
               setStreamingMessage('');
               setIsStreaming(false);
               eventSource.close();
+
+              // Focus input after AI response completes
+              setShouldFocusInput(true);
 
               // Reload conversations to update sidebar
               loadConversations();
@@ -179,6 +197,18 @@ function App() {
     }
   };
 
+  const renameConversation = async (conversationId: string, title: string) => {
+    try {
+      await apiService.renameConversation(conversationId, title);
+      if (currentConversation === conversationId) {
+        setCurrentConversationTitle(title);
+      }
+      loadConversations();
+    } catch (error) {
+      console.error('Failed to rename conversation:', error);
+    }
+  };
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -208,12 +238,18 @@ function App() {
         <header className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 px-6 py-4 transition-colors duration-200">
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-              ChatAI-GCP
+              Chat-AI
             </h1>
+            <div className="flex-1 flex justify-center">
+              <EditableTitle
+                title={currentConversationTitle}
+                onSave={(newTitle) => currentConversation && renameConversation(currentConversation, newTitle)}
+                placeholder={currentConversation ? "Untitled Conversation" : "New Chat"}
+                className="text-lg font-medium text-gray-900 dark:text-gray-100"
+                disabled={!currentConversation || isStreaming}
+              />
+            </div>
             <div className="flex items-center space-x-4">
-              <div className="text-sm text-gray-600 dark:text-gray-400">
-                {currentConversation ? 'Conversation' : 'New Chat'}
-              </div>
               <ThemeToggle />
             </div>
           </div>
@@ -288,6 +324,8 @@ function App() {
           onSendMessage={sendMessage}
           disabled={isStreaming}
           placeholder={isStreaming ? "AI is responding..." : "Type your message..."}
+          shouldFocus={shouldFocusInput}
+          onFocused={() => setShouldFocusInput(false)}
         />
       </div>
     </div>
