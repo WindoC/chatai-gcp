@@ -249,6 +249,36 @@ class FirestoreService:
             logger.error(f"Error starring conversation {conversation_id}: {e}")
             return False
     
+    async def rename_conversation(self, conversation_id: str, title: str) -> bool:
+        """
+        Rename a conversation
+        
+        Args:
+            conversation_id: The conversation ID
+            title: New title for the conversation
+            
+        Returns:
+            bool: Success status
+        """
+        try:
+            doc_ref = self.db.collection("conversations").document(conversation_id)
+            # Check if conversation exists
+            doc = doc_ref.get()
+            if not doc.exists:
+                logger.warning(f"Conversation {conversation_id} not found for renaming")
+                return False
+            
+            doc_ref.update({
+                "title": title,
+                "last_updated": datetime.utcnow()
+            })
+            logger.info(f"Renamed conversation {conversation_id} to '{title}'")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error renaming conversation {conversation_id}: {e}")
+            return False
+    
     async def bulk_delete_nonstarred(self) -> int:
         """
         Delete all non-starred conversations
@@ -257,17 +287,27 @@ class FirestoreService:
             int: Number of conversations deleted
         """
         try:
-            # Query non-starred conversations
-            query = self.db.collection("conversations").where("starred", "==", False)
-            docs = list(query.stream())
+            # Get all conversations and filter non-starred ones
+            # This handles cases where 'starred' field might be missing or null
+            all_docs = list(self.db.collection("conversations").stream())
+            non_starred_docs = []
+            
+            for doc in all_docs:
+                data = doc.to_dict()
+                # Consider conversation non-starred if starred is False, None, or missing
+                is_starred = data.get("starred", False)
+                if not is_starred:
+                    non_starred_docs.append(doc)
+            
+            logger.info(f"Found {len(non_starred_docs)} non-starred conversations to delete")
             
             # Delete in batches
             batch_size = 500
             deleted_count = 0
             
-            for i in range(0, len(docs), batch_size):
+            for i in range(0, len(non_starred_docs), batch_size):
                 batch = self.db.batch()
-                batch_docs = docs[i:i + batch_size]
+                batch_docs = non_starred_docs[i:i + batch_size]
                 
                 for doc in batch_docs:
                     batch.delete(doc.reference)
