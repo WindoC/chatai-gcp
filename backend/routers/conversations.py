@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException, Query
 from typing import Optional
 import logging
-from ..models import ConversationList, Conversation, APIResponse
-from ..services import firestore_service
+from models import ConversationList, Conversation, APIResponse
+from services import firestore_service
 
 logger = logging.getLogger(__name__)
 

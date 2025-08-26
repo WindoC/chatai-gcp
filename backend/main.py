@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 import os
 import logging
 from datetime import datetime
-from .routers import chat_router, conversations_router
+from routers import chat_router, conversations_router
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

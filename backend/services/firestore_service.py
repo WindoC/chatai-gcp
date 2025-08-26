@@ -3,8 +3,8 @@ from typing import List, Optional, Dict, Any
 import uuid
 import logging
 from datetime import datetime
-from ..config import settings
-from ..models import Conversation, Message, ConversationSummary, MessageRole
+from config import settings
+from models import Conversation, Message, ConversationSummary, MessageRole
 
 logger = logging.getLogger(__name__)
 

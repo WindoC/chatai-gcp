@@ -3,8 +3,8 @@ from fastapi.responses import StreamingResponse
 import json
 import logging
 from typing import AsyncGenerator
-from ..models import ChatRequest, Message, MessageRole
-from ..services import gemini_service, firestore_service
+from models import ChatRequest, Message, MessageRole
+from services import gemini_service, firestore_service
 
 logger = logging.getLogger(__name__)
 
