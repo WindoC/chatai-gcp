@@ -98,7 +98,7 @@ ENCRYPTION_ENABLED=false
 ```bash
 # Install and authenticate with gcloud (for Firestore access)
 gcloud auth login
-gcloud config set project chat-470206
+gcloud config set project YOUR_PROJECT_ID
 
 # Set up application default credentials
 gcloud auth application-default login
