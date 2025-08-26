@@ -6,6 +6,8 @@ import os
 import logging
 from datetime import datetime
 from routers import chat_router, conversations_router
+from routers.auth import router as auth_router
+from middleware.security_middleware import add_security_headers, rate_limit_middleware
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -28,6 +30,10 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Add security middleware
+app.middleware("http")(add_security_headers)
+app.middleware("http")(rate_limit_middleware)
+
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
@@ -38,6 +44,7 @@ app.add_middleware(
 )
 
 # Include routers
+app.include_router(auth_router)
 app.include_router(chat_router)
 app.include_router(conversations_router)
 

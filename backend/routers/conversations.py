@@ -1,8 +1,10 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from typing import Optional
 import logging
 from models import ConversationList, Conversation, APIResponse, StarRequest, RenameRequest
 from services import firestore_service
+from middleware.auth_middleware import get_current_user
+from services.auth_service import TokenData
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +15,8 @@ router = APIRouter(prefix="/api/conversations", tags=["conversations"])
 async def list_conversations(
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
-    starred: Optional[bool] = Query(None)
+    starred: Optional[bool] = Query(None),
+    current_user: TokenData = Depends(get_current_user)
 ):
     """
     List conversations with pagination
@@ -50,7 +53,7 @@ async def list_conversations(
 
 
 @router.get("/{conversation_id}", response_model=Conversation)
-async def get_conversation(conversation_id: str):
+async def get_conversation(conversation_id: str, current_user: TokenData = Depends(get_current_user)):
     """
     Get a specific conversation with all messages
     
@@ -77,7 +80,7 @@ async def get_conversation(conversation_id: str):
 
 
 @router.post("/{conversation_id}/star", response_model=APIResponse)
-async def star_conversation(conversation_id: str, star_request: StarRequest):
+async def star_conversation(conversation_id: str, star_request: StarRequest, current_user: TokenData = Depends(get_current_user)):
     """
     Star or unstar a conversation
     
@@ -110,7 +113,7 @@ async def star_conversation(conversation_id: str, star_request: StarRequest):
 
 
 @router.patch("/{conversation_id}/title", response_model=APIResponse)
-async def rename_conversation(conversation_id: str, rename_request: RenameRequest):
+async def rename_conversation(conversation_id: str, rename_request: RenameRequest, current_user: TokenData = Depends(get_current_user)):
     """
     Rename a conversation
     
@@ -143,7 +146,7 @@ async def rename_conversation(conversation_id: str, rename_request: RenameReques
 
 
 @router.delete("/nonstarred", response_model=APIResponse)
-async def bulk_delete_nonstarred():
+async def bulk_delete_nonstarred(current_user: TokenData = Depends(get_current_user)):
     """
     Bulk delete all non-starred conversations
     
@@ -167,7 +170,7 @@ async def bulk_delete_nonstarred():
 
 
 @router.delete("/{conversation_id}", response_model=APIResponse)
-async def delete_conversation(conversation_id: str):
+async def delete_conversation(conversation_id: str, current_user: TokenData = Depends(get_current_user)):
     """
     Delete a specific conversation
     

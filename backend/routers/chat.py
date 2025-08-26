@@ -1,10 +1,12 @@
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Depends
 from fastapi.responses import StreamingResponse
 import json
 import logging
 from typing import AsyncGenerator
 from models import ChatRequest, Message, MessageRole
 from services import gemini_service, firestore_service
+from middleware.auth_middleware import get_current_user
+from services.auth_service import TokenData
 
 logger = logging.getLogger(__name__)
 
@@ -73,13 +75,18 @@ async def create_sse_stream(message: str, conversation_id: str = None) -> AsyncG
 
 
 @router.post("/")
-async def start_chat(chat_request: ChatRequest, request: Request):
+async def start_chat(
+    chat_request: ChatRequest, 
+    request: Request,
+    current_user: TokenData = Depends(get_current_user)
+):
     """
     Start a new chat conversation with streaming response
     
     Args:
         chat_request: Chat request containing the user message
         request: FastAPI request object
+        current_user: Current authenticated user
         
     Returns:
         StreamingResponse: Server-Sent Events stream
@@ -105,7 +112,12 @@ async def start_chat(chat_request: ChatRequest, request: Request):
 
 
 @router.post("/{conversation_id}")
-async def continue_chat(conversation_id: str, chat_request: ChatRequest, request: Request):
+async def continue_chat(
+    conversation_id: str, 
+    chat_request: ChatRequest, 
+    request: Request,
+    current_user: TokenData = Depends(get_current_user)
+):
     """
     Continue an existing chat conversation with streaming response
     
@@ -113,6 +125,7 @@ async def continue_chat(conversation_id: str, chat_request: ChatRequest, request
         conversation_id: ID of the existing conversation
         chat_request: Chat request containing the user message
         request: FastAPI request object
+        current_user: Current authenticated user
         
     Returns:
         StreamingResponse: Server-Sent Events stream
