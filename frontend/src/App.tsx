@@ -209,6 +209,35 @@ function App() {
     }
   };
 
+  const copyFullConversation = async () => {
+    try {
+      const allMessages = [...messages];
+      if (streamingMessage) {
+        allMessages.push({
+          role: 'ai',
+          content: streamingMessage,
+          created_at: new Date().toISOString(),
+        });
+      }
+
+      const markdownContent = allMessages
+        .map(msg => {
+          const role = msg.role === 'user' ? 'User' : 'Assistant';
+          return `**${role}:** ${msg.content}`;
+        })
+        .join('\n\n---\n\n');
+
+      const fullContent = `# ${currentConversationTitle || 'Conversation'}\n\n${markdownContent}`;
+      
+      await navigator.clipboard.writeText(fullContent);
+      
+      // Show success feedback (could be enhanced with a toast notification)
+      console.log('Full conversation copied to clipboard');
+    } catch (err) {
+      console.error('Failed to copy conversation: ', err);
+    }
+  };
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -253,6 +282,17 @@ function App() {
               />
             </div>
             <div className="flex items-center space-x-4">
+              {messages.length > 0 && (
+                <button
+                  onClick={copyFullConversation}
+                  className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  title="Copy full conversation"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                </button>
+              )}
               <ThemeToggle />
             </div>
           </div>
