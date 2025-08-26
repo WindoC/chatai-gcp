@@ -235,11 +235,14 @@ function App() {
       {/* Main chat area */}
       <div className="flex-1 flex flex-col md:ml-0">
         {/* Header */}
-        <header className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 px-6 py-4 transition-colors duration-200">
+        <header className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 px-6 md:px-6 py-4 transition-colors duration-200">
           <div className="flex items-center justify-between">
-            <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+            {/* Mobile: Leave space for hamburger menu, Desktop: Show Chat-AI */}
+            <h1 className="hidden md:block text-xl font-semibold text-gray-900 dark:text-gray-100">
               Chat-AI
             </h1>
+            <div className="md:hidden w-10"></div> {/* Spacer for mobile hamburger menu */}
+            
             <div className="flex-1 flex justify-center">
               <EditableTitle
                 title={currentConversationTitle}
