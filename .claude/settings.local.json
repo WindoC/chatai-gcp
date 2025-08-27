@@ -5,7 +5,8 @@
       "mcp__context7__resolve-library-id",
       "mcp__context7__get-library-docs",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(del \"C:\\temp\\chatai-gcp\\frontend\\src\\components\\GroundedText.tsx\")"
     ],
     "deny": [],
     "ask": []

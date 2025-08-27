@@ -434,7 +434,7 @@ test('authentication flow', async ({ page }) => {
   await page.goto('http://localhost:3000');
   
   // Should show login page
-  await expect(page.locator('text=Welcome to ChatAI-GCP')).toBeVisible();
+  await expect(page.locator('text=Welcome to Chat-AI')).toBeVisible();
   await expect(page.locator('text=Sign in to start chatting')).toBeVisible();
   
   // Login
