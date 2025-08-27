@@ -22,7 +22,9 @@ This is a secure AI chat web application with the following architecture:
 
 ### Chat Implementation
 - Real-time streaming via Server-Sent Events (SSE)
-- Markdown rendering for AI responses
+- Markdown rendering for AI responses with syntax highlighting
+- Google Search grounding with web results and citations
+- Automatic URL context detection for web page grounding
 - Conversation history stored in Firestore without auto-expiration
 - Bulk operations for non-starred conversations
 
@@ -32,7 +34,16 @@ Conversations in Firestore follow this structure:
 {
   "conversation_id": "uuid",
   "messages": [
-    { "role": "user|ai", "content": "text", "created_at": "timestamp" }
+    { 
+      "role": "user|ai", 
+      "content": "text", 
+      "created_at": "timestamp",
+      "references": [{"id": 1, "title": "Source", "url": "https://...", "domain": "example.com"}],
+      "search_queries": ["query1", "query2"],
+      "grounding_supports": [{"start_index": 0, "end_index": 10, "text": "grounded text", "reference_indices": [1]}],
+      "url_context_urls": ["https://..."],
+      "grounded": true
+    }
   ],
   "created_at": "timestamp",
   "last_updated": "timestamp", 
@@ -61,13 +72,16 @@ This project follows a 4-phase development approach:
 - Basic Firestore conversation storage
 - No authentication required for this phase
 
-### Phase 3: Authentication and Conversation Management ✅
+### Phase 3: Authentication, Conversation Management, and AI Grounding ✅
 - JWT-based single-user authentication system
 - Complete conversation CRUD operations
 - Conversation history, starring, and bulk delete
 - Protected API endpoints with middleware
 - Security headers and rate limiting
 - React authentication context and protected routes
+- Google Search grounding with web results and citations
+- Automatic URL context detection and web page grounding
+- Enhanced UI with search toggle and reference display
 
 ### Phase 4: End-to-End AES Encryption
 - Web Crypto API implementation on frontend
@@ -101,7 +115,7 @@ This project follows a 4-phase development approach:
 - React components with TailwindCSS ChatGPT-inspired UI
 - Markdown rendering with syntax highlighting
 
-### Phase 3 Security Implementation ✅
+### Phase 3 Security and AI Features Implementation ✅
 - Environment-based credentials (USERNAME, PASSWORD_HASH)
 - JWT access (30min) and refresh tokens (7 days)
 - Rate limiting on authentication endpoints (10/min auth, 30/min chat)
@@ -109,6 +123,10 @@ This project follows a 4-phase development approach:
 - Protected API endpoints with JWT middleware
 - React authentication context with automatic token refresh
 - Login/logout functionality with secure token storage
+- Google Search grounding with Gemini 2.5 Flash integration
+- Automatic URL detection and web page context grounding
+- Citation processing with inline reference insertion
+- Enhanced message display with grounding indicators and references
 
 ### Phase 4 Encryption Details
 - AES-256-GCM encryption with Web Crypto API
@@ -138,7 +156,21 @@ This project follows a 4-phase development approach:
 - Generate secure JWT secrets: `python -c "import secrets; print(secrets.token_hex(32))"`
 - Generate password hashes: `python -c "import hashlib; print(hashlib.sha256('password'.encode()).hexdigest())"`
 
-## Current Implementation Status (Phase 3 Complete)
+## Current Implementation Status (Phase 3 Complete with AI Grounding)
+
+### AI Grounding Features
+- **Google Search Integration**: Real-time web search with Gemini 2.5 Flash
+- **Automatic URL Detection**: Uses regex pattern to detect URLs in messages
+- **Citation Processing**: Backend processes inline citations for grounded responses
+- **Reference Management**: Structured reference data with clickable links
+- **UI Enhancements**: Search toggle button and grounding indicators
+
+### Grounding Implementation Details
+- **Backend URL Detection**: `r'https?://[^\s<>"{}|\\^`\[\]]+[^\s<>"{}|\\^`\[\].,;:!?)]'`
+- **Tool Configuration**: Automatically adds `google_search` and `url_context` tools
+- **Citation Insertion**: Server-side processing of grounding supports with reference indices
+- **Data Models**: Extended with `Reference`, `GroundingSupport` models for metadata
+- **SSE Integration**: Real-time streaming includes grounding metadata in final event
 
 ### Backend Architecture
 ```
@@ -170,8 +202,9 @@ frontend/src/
 ├── components/
 │   ├── Login.tsx                     # Authentication form component
 │   ├── ProtectedRoute.tsx            # Route protection wrapper
-│   ├── ChatInput.tsx                 # Message input with auth integration
-│   ├── ChatMessage.tsx               # Message display component
+│   ├── ChatInput.tsx                 # Message input with search toggle
+│   ├── ChatMessage.tsx               # Message display with grounding indicators
+│   ├── References.tsx                # Citation and reference display
 │   ├── ConversationSidebar.tsx       # Conversation management UI
 │   ├── EditableTitle.tsx             # In-place conversation title editing
 │   └── ThemeToggle.tsx               # Theme switching component
@@ -189,6 +222,11 @@ frontend/src/
 - **📱 Responsive Login UI**: Beautiful authentication form with error handling
 - **🔄 State Management**: React Context for global authentication state
 - **🚪 Clean Logout**: Token cleanup and UI reset on logout
+- **🔍 Google Search Grounding**: Web search integration with result citations
+- **🌐 URL Context Detection**: Automatic URL detection and web page grounding
+- **📋 Enhanced Copy**: Full conversation copy including references and metadata
+- **🎯 Inline Citations**: Automatic citation insertion in AI responses
+- **📚 Reference Display**: Clickable source references with proper attribution
 
 ### Default Credentials (Development)
 - **Username**: `admin`
