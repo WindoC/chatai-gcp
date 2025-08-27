@@ -62,7 +62,7 @@ function ChatInterface() {
     setStreamingMessage('');
   };
 
-  const sendMessage = async (messageText: string) => {
+  const sendMessage = async (messageText: string, enableSearch = false) => {
     if (isStreaming) return;
 
     // Add user message to UI immediately
@@ -83,7 +83,11 @@ function ChatInterface() {
 
     try {
       // Create chat stream
-      const eventSource = await apiService.createChatStream(messageText, currentConversation || undefined);
+      const eventSource = await apiService.createChatStream(
+        messageText, 
+        currentConversation || undefined, 
+        enableSearch
+      );
       eventSourceRef.current = eventSource;
 
       let aiMessageContent = '';
@@ -119,10 +123,14 @@ function ChatInterface() {
                 }, 100);
               }
 
-              // Add final AI message
+              // Add final AI message with grounding data
               const aiMessage: Message = {
                 role: 'ai',
                 content: aiMessageContent,
+                references: data.references,
+                search_queries: data.search_queries,
+                grounding_supports: data.grounding_supports,
+                grounded: data.grounded || false,
                 created_at: new Date().toISOString(),
               };
 
@@ -226,7 +234,22 @@ function ChatInterface() {
       const markdownContent = allMessages
         .map(msg => {
           const role = msg.role === 'user' ? 'User' : 'Assistant';
-          return `**${role}:** ${msg.content}`;
+          let messageContent = `**${role}:** ${msg.content}`;
+          
+          // Add references for AI messages with grounding
+          if (msg.role === 'ai' && msg.references && msg.references.length > 0) {
+            messageContent += '\n\n**References:**\n';
+            msg.references.forEach(ref => {
+              messageContent += `[${ref.id}] ${ref.title}\n    ${ref.url}\n`;
+            });
+          }
+          
+          // Add search queries if available
+          if (msg.role === 'ai' && msg.search_queries && msg.search_queries.length > 0) {
+            messageContent += '\n**Search Queries:** ' + msg.search_queries.join(', ');
+          }
+          
+          return messageContent;
         })
         .join('\n\n---\n\n');
 
@@ -320,7 +343,7 @@ function ChatInterface() {
                     <span className="text-2xl text-white">🤖</span>
                   </div>
                   <h2 className="text-3xl font-bold mb-4 text-gray-900 dark:text-gray-100">
-                    Welcome to ChatAI-GCP
+                    Welcome to Chat-AI
                   </h2>
                   <p className="text-lg max-w-md mx-auto">
                     Start a conversation with our AI assistant powered by Google Gemini.
@@ -349,6 +372,17 @@ function ChatInterface() {
                     <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">🎯 Solve Problems</h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
                       Get step-by-step solutions and guidance
+                    </p>
+                  </div>
+                  <div className="p-4 bg-blue-50 dark:bg-blue-950 rounded-xl border border-blue-200 dark:border-blue-800 shadow-soft col-span-full">
+                    <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-2 flex items-center">
+                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                      🌐 NEW: Web Search Grounding
+                    </h3>
+                    <p className="text-sm text-blue-700 dark:text-blue-300">
+                      Enable the "Search the web for current information" checkbox to get answers grounded with real-time web search results and source citations.
                     </p>
                   </div>
                 </div>
