@@ -1,8 +1,9 @@
-from fastapi import APIRouter, HTTPException, Query, Depends
+from fastapi import APIRouter, HTTPException, Query, Depends, Header
 from typing import Optional
 import logging
 from models import ConversationList, Conversation, APIResponse, StarRequest, RenameRequest
 from services import firestore_service
+from services.encryption_service import encryption_service, EncryptionError
 from middleware.auth_middleware import get_current_user
 from services.auth_service import TokenData
 
@@ -53,15 +54,21 @@ async def list_conversations(
 
 
 @router.get("/{conversation_id}", response_model=Conversation)
-async def get_conversation(conversation_id: str, current_user: TokenData = Depends(get_current_user)):
+async def get_conversation(
+    conversation_id: str, 
+    current_user: TokenData = Depends(get_current_user),
+    x_key_hash: Optional[str] = Header(None, description="AES key hash for decrypting messages")
+):
     """
     Get a specific conversation with all messages
     
     Args:
         conversation_id: The conversation ID
+        current_user: Current authenticated user
+        x_key_hash: Optional AES key hash for decrypting encrypted messages
         
     Returns:
-        Conversation: Complete conversation with messages
+        Conversation: Complete conversation with messages (decrypted if key provided)
     """
     try:
         logger.info(f"Getting conversation: {conversation_id}")
@@ -69,6 +76,26 @@ async def get_conversation(conversation_id: str, current_user: TokenData = Depen
         conversation = await firestore_service.get_conversation(conversation_id)
         if not conversation:
             raise HTTPException(status_code=404, detail="Conversation not found")
+        
+        # If encryption is enabled and key_hash is provided, decrypt the conversation data
+        if encryption_service.encryption_enabled and x_key_hash:
+            try:
+                # Convert conversation to dict for encryption service processing
+                conversation_dict = conversation.dict()
+                decrypted_dict = encryption_service.handle_conversation_data(
+                    conversation_dict, x_key_hash, decrypt=True
+                )
+                # Convert back to Conversation object
+                conversation = Conversation(**decrypted_dict)
+            except EncryptionError as e:
+                logger.error(f"Failed to decrypt conversation {conversation_id}: {e}")
+                raise HTTPException(status_code=400, detail="Failed to decrypt conversation data")
+        elif encryption_service.encryption_enabled and not x_key_hash:
+            # If encryption is enabled but no key provided, return error
+            raise HTTPException(
+                status_code=400, 
+                detail="Encryption key hash required in X-Key-Hash header for encrypted conversations"
+            )
         
         return conversation
         

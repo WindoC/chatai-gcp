@@ -2,9 +2,10 @@ from fastapi import APIRouter, HTTPException, Request, Depends
 from fastapi.responses import StreamingResponse
 import json
 import logging
-from typing import AsyncGenerator
-from models import ChatRequest, Message, MessageRole
+from typing import AsyncGenerator, Union
+from models import ChatRequest, Message, MessageRole, EncryptedContent
 from services import gemini_service, firestore_service
+from services.encryption_service import encryption_service, EncryptionError, DecryptionError
 from middleware.auth_middleware import get_current_user
 from services.auth_service import TokenData
 
@@ -13,13 +14,18 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
 
-async def create_sse_stream(message: str, conversation_id: str = None) -> AsyncGenerator[str, None]:
+async def create_sse_stream(
+    message: str, 
+    conversation_id: str = None,
+    key_hash: str = None
+) -> AsyncGenerator[str, None]:
     """
     Create Server-Sent Events stream for chat response
     
     Args:
-        message: User message
+        message: Decrypted user message
         conversation_id: Optional existing conversation ID
+        key_hash: Optional AES key hash for encrypting responses
         
     Yields:
         str: SSE formatted data
@@ -44,7 +50,23 @@ async def create_sse_stream(message: str, conversation_id: str = None) -> AsyncG
         response_chunks = []
         async for chunk in gemini_service.generate_response_stream(message, conversation_history):
             response_chunks.append(chunk)
-            yield f"data: {json.dumps({'type': 'chunk', 'content': chunk})}\n\n"
+            
+            # Encrypt chunk if encryption is enabled and key_hash provided
+            chunk_data = {'type': 'chunk', 'content': chunk}
+            if encryption_service.encryption_enabled and key_hash:
+                try:
+                    encrypted_chunk = encryption_service.encrypt_payload(chunk, key_hash)
+                    chunk_data = {
+                        'type': 'chunk',
+                        'content': encrypted_chunk,
+                        'encrypted': True,
+                        'key_hash': key_hash
+                    }
+                except EncryptionError as e:
+                    logger.error(f"Failed to encrypt chunk: {e}")
+                    chunk_data['error'] = "Encryption failed"
+            
+            yield f"data: {json.dumps(chunk_data)}\n\n"
         
         # Combine all chunks for complete response
         complete_response = "".join(response_chunks)
@@ -92,10 +114,31 @@ async def start_chat(
         StreamingResponse: Server-Sent Events stream
     """
     try:
-        logger.info(f"Starting new chat with message: {chat_request.message[:100]}...")
+        # Handle message decryption if needed
+        decrypted_message = chat_request.message
+        key_hash = chat_request.key_hash
+        
+        # If message is encrypted or encryption is enabled
+        if chat_request.encrypted or encryption_service.encryption_enabled:
+            if isinstance(chat_request.message, EncryptedContent):
+                # Message is an EncryptedContent object
+                key_hash = chat_request.message.key_hash
+                decrypted_message = encryption_service.decrypt_payload(
+                    chat_request.message.content, key_hash
+                )
+            elif isinstance(chat_request.message, str) and chat_request.encrypted:
+                # Message is encrypted string
+                if not key_hash:
+                    raise HTTPException(status_code=400, detail="Key hash required for encrypted messages")
+                decrypted_message = encryption_service.decrypt_payload(chat_request.message, key_hash)
+            elif encryption_service.encryption_enabled and not chat_request.encrypted:
+                # Encryption is enabled but message is not encrypted
+                raise HTTPException(status_code=501, detail="Encryption is required but message is not encrypted")
+        
+        logger.info(f"Starting new chat with decrypted message: {str(decrypted_message)[:100]}...")
         
         return StreamingResponse(
-            create_sse_stream(chat_request.message),
+            create_sse_stream(decrypted_message, key_hash=key_hash),
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",
@@ -106,6 +149,9 @@ async def start_chat(
             }
         )
         
+    except (EncryptionError, DecryptionError) as e:
+        logger.error(f"Encryption error in chat: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Error starting chat: {e}")
         raise HTTPException(status_code=500, detail="Failed to start chat")
@@ -131,7 +177,28 @@ async def continue_chat(
         StreamingResponse: Server-Sent Events stream
     """
     try:
-        logger.info(f"Continuing chat {conversation_id} with message: {chat_request.message[:100]}...")
+        # Handle message decryption if needed
+        decrypted_message = chat_request.message
+        key_hash = chat_request.key_hash
+        
+        # If message is encrypted or encryption is enabled
+        if chat_request.encrypted or encryption_service.encryption_enabled:
+            if isinstance(chat_request.message, EncryptedContent):
+                # Message is an EncryptedContent object
+                key_hash = chat_request.message.key_hash
+                decrypted_message = encryption_service.decrypt_payload(
+                    chat_request.message.content, key_hash
+                )
+            elif isinstance(chat_request.message, str) and chat_request.encrypted:
+                # Message is encrypted string
+                if not key_hash:
+                    raise HTTPException(status_code=400, detail="Key hash required for encrypted messages")
+                decrypted_message = encryption_service.decrypt_payload(chat_request.message, key_hash)
+            elif encryption_service.encryption_enabled and not chat_request.encrypted:
+                # Encryption is enabled but message is not encrypted
+                raise HTTPException(status_code=501, detail="Encryption is required but message is not encrypted")
+        
+        logger.info(f"Continuing chat {conversation_id} with decrypted message: {str(decrypted_message)[:100]}...")
         
         # Verify conversation exists
         conversation = await firestore_service.get_conversation(conversation_id)
@@ -139,7 +206,7 @@ async def continue_chat(
             raise HTTPException(status_code=404, detail="Conversation not found")
         
         return StreamingResponse(
-            create_sse_stream(chat_request.message, conversation_id),
+            create_sse_stream(decrypted_message, conversation_id, key_hash=key_hash),
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",
@@ -152,6 +219,9 @@ async def continue_chat(
         
     except HTTPException:
         raise
+    except (EncryptionError, DecryptionError) as e:
+        logger.error(f"Encryption error in chat: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Error continuing chat: {e}")
         raise HTTPException(status_code=500, detail="Failed to continue chat")
