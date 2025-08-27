@@ -52,41 +52,27 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   return (
     <div className="border-t border-gray-200 dark:border-gray-700 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm p-6 transition-colors duration-200">
       <form onSubmit={handleSubmit} className="max-w-4xl mx-auto">
-        {/* Search Toggle */}
-        <div className="mb-4 flex items-center">
-          <label className="flex items-center space-x-3 cursor-pointer">
-            <div className="relative">
-              <input
-                type="checkbox"
-                checked={enableSearch}
-                onChange={(e) => setEnableSearch(e.target.checked)}
-                disabled={disabled}
-                className="
-                  w-5 h-5 text-primary-500 bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600
-                  rounded focus:ring-2 focus:ring-primary-500 focus:ring-offset-0
-                  disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200
-                "
-              />
-              {enableSearch && (
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <svg className="w-3 h-3 text-primary-500" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                </div>
-              )}
-            </div>
-            <div className="flex items-center space-x-2">
-              <svg className="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Search the web for current information
-              </span>
-            </div>
-          </label>
-        </div>
-        
         <div className="flex items-end space-x-4">
+          {/* Search Toggle Button */}
+          <button
+            type="button"
+            onClick={() => setEnableSearch(!enableSearch)}
+            disabled={disabled}
+            className={`
+              p-3 rounded-2xl transition-all duration-200 min-h-[56px] flex items-center justify-center
+              ${enableSearch
+                ? 'bg-primary-500 text-white shadow-soft hover:bg-primary-600'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+              }
+              disabled:opacity-50 disabled:cursor-not-allowed
+              focus:outline-none focus:ring-2 focus:ring-primary-500
+            `}
+            title="Search the web for current information"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </button>
           <div className="flex-1 relative">
             <textarea
               ref={textareaRef}
