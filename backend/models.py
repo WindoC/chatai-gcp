@@ -18,6 +18,7 @@ class Message(BaseModel):
     references: Optional[List["Reference"]] = None
     search_queries: Optional[List[str]] = None
     grounding_supports: Optional[List["GroundingSupport"]] = None
+    url_context_urls: Optional[List[str]] = None
     grounded: bool = False
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -43,6 +44,7 @@ class ChatRequest(BaseModel):
     """Chat request model"""
     message: str = Field(..., min_length=1, max_length=4000)
     enable_search: bool = False  # Google Search grounding
+    url_context: Optional[List[str]] = None  # URL context for enhanced responses
     encrypted: bool = False  # Phase 4 feature
 
 
@@ -64,6 +66,7 @@ class ChatResponse(BaseModel):
     references: Optional[List[Reference]] = None
     search_queries: Optional[List[str]] = None
     grounding_supports: Optional[List[GroundingSupport]] = None
+    url_context_urls: Optional[List[str]] = None
     grounded: bool = False
     error: Optional[str] = None
 

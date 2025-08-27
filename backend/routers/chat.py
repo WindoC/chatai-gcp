@@ -3,7 +3,7 @@ from fastapi.responses import StreamingResponse
 import json
 import logging
 import asyncio
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Optional, List
 from models import ChatRequest, Message, MessageRole
 from services import gemini_service, firestore_service
 from middleware.auth_middleware import get_current_user
@@ -42,33 +42,19 @@ async def create_sse_stream(message: str, conversation_id: str = None, enable_se
         if not conversation_id:
             yield f"data: {json.dumps({'type': 'conversation_start'})}\n\n"
         
-        # Generate AI response with grounding metadata
-        if enable_search:
-            # Use grounding method for search-enabled requests
-            complete_response, references, search_queries, grounding_supports, grounded = await gemini_service.generate_response_with_grounding(
-                message, conversation_history, enable_search
-            )
-            
-            # Stream the complete response in chunks for consistency
-            chunk_size = 50  # Characters per chunk
-            for i in range(0, len(complete_response), chunk_size):
-                chunk = complete_response[i:i + chunk_size]
-                yield f"data: {json.dumps({'type': 'chunk', 'content': chunk})}\n\n"
-                # Small delay to simulate streaming
-                await asyncio.sleep(0.05)
-        else:
-            # Use streaming method for regular requests
-            response_chunks = []
-            async for chunk in gemini_service.generate_response_stream(message, conversation_history, enable_search):
-                response_chunks.append(chunk)
-                yield f"data: {json.dumps({'type': 'chunk', 'content': chunk})}\n\n"
-            
-            # Combine all chunks for complete response
-            complete_response = "".join(response_chunks)
-            references = []
-            search_queries = []
-            grounding_supports = []
-            grounded = False
+        # Always use grounding method to support URL auto-detection and search
+        # URL context is auto-detected from message content in gemini_service
+        complete_response, references, search_queries, grounding_supports, url_context_urls, grounded = await gemini_service.generate_response_with_grounding(
+            message, conversation_history, enable_search, None
+        )
+        
+        # Stream the complete response in chunks for consistency
+        chunk_size = 50  # Characters per chunk
+        for i in range(0, len(complete_response), chunk_size):
+            chunk = complete_response[i:i + chunk_size]
+            yield f"data: {json.dumps({'type': 'chunk', 'content': chunk})}\n\n"
+            # Small delay to simulate streaming
+            await asyncio.sleep(0.05)
         
         # Save conversation to Firestore
         if conversation_id:
@@ -80,6 +66,7 @@ async def create_sse_stream(message: str, conversation_id: str = None, enable_se
                 references=references,
                 search_queries=search_queries,
                 grounding_supports=grounding_supports,
+                url_context_urls=url_context_urls,
                 grounded=grounded
             )
             await firestore_service.add_message_to_conversation_with_grounding(
@@ -95,6 +82,7 @@ async def create_sse_stream(message: str, conversation_id: str = None, enable_se
                 references=references,
                 search_queries=search_queries,
                 grounding_supports=grounding_supports,
+                url_context_urls=url_context_urls,
                 grounded=grounded
             )
             title = await gemini_service.generate_title(message)
@@ -112,6 +100,7 @@ async def create_sse_stream(message: str, conversation_id: str = None, enable_se
                 'references': [ref.dict() for ref in references],
                 'search_queries': search_queries,
                 'grounding_supports': [support.dict() for support in grounding_supports],
+                'url_context_urls': url_context_urls,
                 'grounded': grounded
             })
         yield f"data: {json.dumps(final_data)}\n\n"
