@@ -48,6 +48,7 @@ export interface ChatRequest {
   message: string;
   enable_search?: boolean;
   url_context?: string[];
+  model?: string;
   encrypted?: boolean;
 }
 

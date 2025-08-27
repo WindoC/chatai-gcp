@@ -136,14 +136,15 @@ export class APIService {
     return data.data.deleted_count;
   }
 
-  async createChatStream(message: string, conversationId?: string, enableSearch = false): Promise<EventSource> {
+  async createChatStream(message: string, conversationId?: string, enableSearch = false, model = 'gemini-2.5-flash'): Promise<EventSource> {
     const url = conversationId 
       ? `${API_BASE_URL}/api/chat/${conversationId}`
       : `${API_BASE_URL}/api/chat/`;
     
     const chatRequest: ChatRequest = { 
       message, 
-      enable_search: enableSearch
+      enable_search: enableSearch,
+      model
     };
     
     // Send the POST request and get the streaming response
@@ -235,6 +236,19 @@ export class APIService {
     })();
 
     return customEventSource as EventSource;
+  }
+
+  async getAvailableModels(): Promise<Array<{id: string, name: string, description: string}>> {
+    const response = await fetch(`${API_BASE_URL}/api/models/`, {
+      headers: this.getAuthHeaders(),
+    });
+    
+    if (!response.ok) {
+      await this.handleAuthError(response);
+      throw new Error('Failed to fetch available models');
+    }
+    
+    return response.json();
   }
 }
 
