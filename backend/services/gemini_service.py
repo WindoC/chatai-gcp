@@ -66,7 +66,7 @@ class GeminiService:
             logger.error(f"Error generating Gemini response: {e}")
             yield f"Error: Unable to generate response. Please try again."
     
-    async def generate_response_with_grounding(self, message: str, conversation_history: Optional[list] = None, enable_search: bool = False) -> Tuple[str, List[Reference], List[str], List[GroundingSupport], bool]:
+    async def generate_response_with_grounding(self, message: str, conversation_history: Optional[list] = None, enable_search: bool = False, url_context: Optional[List[str]] = None) -> Tuple[str, List[Reference], List[str], List[GroundingSupport], List[str], bool]:
         """
         Generate complete response with grounding metadata from Gemini API
         
@@ -74,9 +74,10 @@ class GeminiService:
             message: User message
             conversation_history: Previous messages for context
             enable_search: Enable Google Search grounding
+            url_context: List of URLs to provide as context
             
         Returns:
-            Tuple[str, List[Reference], List[str], List[GroundingSupport], bool]: Response text, references, search queries, grounding supports, grounded flag
+            Tuple[str, List[Reference], List[str], List[GroundingSupport], List[str], bool]: Response text, references, search queries, grounding supports, URL context URLs, grounded flag
         """
         try:
             # Build the full conversation context including history and current message
@@ -90,10 +91,24 @@ class GeminiService:
             # Add current message
             contents.append(message)
             
-            # Configure generation with search grounding if enabled
+            # Configure generation with tools if enabled
             config = {}
+            tools = []
             if enable_search:
-                config["tools"] = [{"google_search": {}}]
+                tools.append({"google_search": {}})
+            
+            # Auto-detect URLs in the message content
+            import re
+            url_pattern = r'https?://[^\s<>"{}|\\^`\[\]]+[^\s<>"{}|\\^`\[\].,;:!?)]'
+            detected_urls = re.findall(url_pattern, contents[-1])
+            
+            if detected_urls:
+                tools.append({"url_context": {}})
+                url_context = detected_urls  # Use detected URLs
+                logger.info(f"Auto-detected URLs for context: {detected_urls}")
+            
+            if tools:
+                config["tools"] = tools
             
             # Generate complete response using async client
             response = await self.client.aio.models.generate_content(
@@ -109,6 +124,7 @@ class GeminiService:
             references = []
             search_queries = []
             grounding_supports = []
+            url_context_urls = url_context or []
             grounded = False
             
             if enable_search and hasattr(response, 'candidates') and response.candidates:
@@ -191,15 +207,19 @@ class GeminiService:
                             )
                             grounding_supports.append(grounding_support)
             
+            # Check for URL context usage
+            if url_context and len(url_context) > 0:
+                grounded = True  # URL context also counts as grounded
+            
             # Process inline citations in the response text
             if grounded and grounding_supports and references:
                 response_text = self._insert_inline_citations(response_text, grounding_supports)
             
-            return response_text, references, search_queries, grounding_supports, grounded
+            return response_text, references, search_queries, grounding_supports, url_context_urls, grounded
             
         except Exception as e:
             logger.error(f"Error generating Gemini response with grounding: {e}")
-            return "Error: Unable to generate response. Please try again.", [], [], [], False
+            return "Error: Unable to generate response. Please try again.", [], [], [], [], False
     
     async def generate_response(self, message: str, conversation_history: Optional[list] = None) -> str:
         """
