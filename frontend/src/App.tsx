@@ -130,6 +130,7 @@ function ChatInterface() {
                 references: data.references,
                 search_queries: data.search_queries,
                 grounding_supports: data.grounding_supports,
+                url_context_urls: data.url_context_urls,
                 grounded: data.grounded || false,
                 created_at: new Date().toISOString(),
               };
@@ -247,6 +248,11 @@ function ChatInterface() {
           // Add search queries if available
           if (msg.role === 'ai' && msg.search_queries && msg.search_queries.length > 0) {
             messageContent += '\n**Search Queries:** ' + msg.search_queries.join(', ');
+          }
+          
+          // Add URL context if available
+          if (msg.role === 'ai' && msg.url_context_urls && msg.url_context_urls.length > 0) {
+            messageContent += '\n**URL Context:** ' + msg.url_context_urls.join('\n    ');
           }
           
           return messageContent;
