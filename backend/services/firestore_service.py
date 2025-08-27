@@ -28,6 +28,53 @@ class FirestoreService:
             logger.error(f"Failed to initialize Firestore client: {e}")
             raise
     
+    async def create_conversation_with_grounding(self, first_message: Message, ai_message: Message, title: str = None) -> str:
+        """
+        Create a new conversation with the first user message and AI response (with grounding support)
+        
+        Args:
+            first_message: The initial user message
+            ai_message: The AI's message (with potential grounding data)
+            title: Optional conversation title
+            
+        Returns:
+            str: The conversation ID
+        """
+        try:
+            conversation_id = str(uuid.uuid4())
+            now = datetime.utcnow()
+            
+            # Set message IDs and timestamps if not already set
+            if not first_message.message_id:
+                first_message.message_id = str(uuid.uuid4())
+            if not ai_message.message_id:
+                ai_message.message_id = str(uuid.uuid4())
+                ai_message.created_at = now
+            
+            # Create conversation document
+            conversation_data = {
+                "conversation_id": conversation_id,
+                "title": title,
+                "messages": [
+                    first_message.model_dump(),
+                    ai_message.model_dump()
+                ],
+                "created_at": now,
+                "last_updated": now,
+                "starred": False
+            }
+            
+            # Save to Firestore
+            doc_ref = self.db.collection("conversations").document(conversation_id)
+            doc_ref.set(conversation_data)
+            
+            logger.info(f"Created conversation {conversation_id} with grounding support")
+            return conversation_id
+            
+        except Exception as e:
+            logger.error(f"Error creating conversation with grounding: {e}")
+            raise
+
     async def create_conversation(self, first_message: Message, ai_response: str, title: str = None) -> str:
         """
         Create a new conversation with the first user message and AI response
@@ -76,6 +123,49 @@ class FirestoreService:
             logger.error(f"Error creating conversation: {e}")
             raise
     
+    async def add_message_to_conversation_with_grounding(self, conversation_id: str, user_message: Message, ai_message: Message) -> bool:
+        """
+        Add a new user message and AI response to an existing conversation (with grounding support)
+        
+        Args:
+            conversation_id: The conversation ID
+            user_message: The user's message
+            ai_message: The AI's message (with potential grounding data)
+            
+        Returns:
+            bool: Success status
+        """
+        try:
+            doc_ref = self.db.collection("conversations").document(conversation_id)
+            
+            # Check if conversation exists
+            doc = doc_ref.get()
+            if not doc.exists:
+                logger.warning(f"Conversation {conversation_id} not found")
+                return False
+            
+            # Set message IDs if not already set
+            if not user_message.message_id:
+                user_message.message_id = str(uuid.uuid4())
+            if not ai_message.message_id:
+                ai_message.message_id = str(uuid.uuid4())
+            
+            # Update conversation with new messages
+            doc_ref.update({
+                "messages": firestore.ArrayUnion([
+                    user_message.model_dump(),
+                    ai_message.model_dump()
+                ]),
+                "last_updated": datetime.utcnow()
+            })
+            
+            logger.info(f"Added messages to conversation {conversation_id} with grounding support")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error adding message to conversation with grounding: {e}")
+            return False
+
     async def add_message_to_conversation(self, conversation_id: str, user_message: Message, ai_response: str) -> bool:
         """
         Add a new user message and AI response to an existing conversation
