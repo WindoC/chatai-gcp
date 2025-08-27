@@ -144,8 +144,10 @@ export class APIService {
     const chatRequest: ChatRequest = { message };
     
     // Send the POST request and get the streaming response
-    const headers = this.getAuthHeaders();
-    headers['Accept'] = 'text/event-stream';
+    const headers = {
+      ...this.getAuthHeaders(),
+      'Accept': 'text/event-stream'
+    };
     
     const response = await fetch(url, {
       method: 'POST',

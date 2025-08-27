@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
 
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+
 interface User {
   username: string;
   authenticated: boolean;
@@ -112,7 +114,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       try {
         // Verify token with server
-        const response = await fetch('/auth/me', {
+        const response = await fetch(`${API_BASE_URL}/auth/me`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${accessToken}`,
@@ -145,7 +147,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const attemptTokenRefresh = async (refreshToken: string): Promise<boolean> => {
     try {
-      const response = await fetch('/auth/refresh', {
+      const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -158,7 +160,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         localStorage.setItem('access_token', access_token);
         
         // Re-verify with new token
-        const userResponse = await fetch('/auth/me', {
+        const userResponse = await fetch(`${API_BASE_URL}/auth/me`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${access_token}`,
@@ -189,7 +191,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     dispatch({ type: 'CLEAR_ERROR' });
 
     try {
-      const response = await fetch('/auth/login', {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -202,7 +204,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setTokens(access_token, refresh_token);
 
         // Get user info
-        const userResponse = await fetch('/auth/me', {
+        const userResponse = await fetch(`${API_BASE_URL}/auth/me`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${access_token}`,
@@ -233,7 +235,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Call logout endpoint if we have a token
     if (accessToken) {
       try {
-        await fetch('/auth/logout', {
+        await fetch(`${API_BASE_URL}/auth/logout`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${accessToken}`,
