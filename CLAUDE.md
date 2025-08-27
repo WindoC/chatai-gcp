@@ -23,6 +23,7 @@ This is a secure AI chat web application with the following architecture:
 ### Chat Implementation
 - Real-time streaming via Server-Sent Events (SSE)
 - Markdown rendering for AI responses with syntax highlighting
+- Dynamic Gemini model selection with 42+ available models
 - Google Search grounding with web results and citations
 - Automatic URL context detection for web page grounding
 - Conversation history stored in Firestore without auto-expiration
@@ -53,7 +54,8 @@ Conversations in Firestore follow this structure:
 
 ### API Endpoints Structure
 - `/auth/*` - Authentication (login, refresh, logout)
-- `/chat` - New conversations with streaming
+- `/api/models/` - Get available Gemini models
+- `/chat` - New conversations with streaming and model selection
 - `/chat/{conversation_id}` - Continue existing conversations
 - `/conversations` - CRUD operations and bulk delete
 
@@ -82,6 +84,7 @@ This project follows a 4-phase development approach:
 - Google Search grounding with web results and citations
 - Automatic URL context detection and web page grounding
 - Enhanced UI with search toggle and reference display
+- Dynamic Gemini model selection with intelligent caching
 
 ### Phase 4: End-to-End AES Encryption
 - Web Crypto API implementation on frontend
@@ -158,6 +161,14 @@ This project follows a 4-phase development approach:
 
 ## Current Implementation Status (Phase 3 Complete with AI Grounding)
 
+### Dynamic Model Selection Features
+- **Real-time Model Discovery**: Queries Google AI API for all available models
+- **Intelligent Caching**: Models cached in memory to avoid repeated API calls
+- **42+ Available Models**: Supports all Gemini models that support generateContent
+- **Persistent Selection**: Selected model stored in localStorage across sessions
+- **Fallback Models**: Graceful degradation when API is unavailable
+- **UI Integration**: Clean dropdown in header with loading/error states
+
 ### AI Grounding Features
 - **Google Search Integration**: Real-time web search with Gemini 2.5 Flash
 - **Automatic URL Detection**: Uses regex pattern to detect URLs in messages
@@ -188,7 +199,8 @@ backend/
 ├── routers/
 │   ├── auth.py                       # Authentication endpoints (/auth/*)
 │   ├── chat.py                       # Chat endpoints with auth protection
-│   └── conversations.py              # Conversation CRUD with auth protection
+│   ├── conversations.py              # Conversation CRUD with auth protection
+│   └── models.py                     # Model discovery endpoint (/api/models/)
 └── requirements.txt                  # Updated with JWT dependencies
 ```
 
@@ -202,6 +214,7 @@ frontend/src/
 ├── components/
 │   ├── Login.tsx                     # Authentication form component
 │   ├── ProtectedRoute.tsx            # Route protection wrapper
+│   ├── ModelSelector.tsx             # Dynamic model selection dropdown
 │   ├── ChatInput.tsx                 # Message input with search toggle
 │   ├── ChatMessage.tsx               # Message display with grounding indicators
 │   ├── References.tsx                # Citation and reference display
@@ -209,7 +222,8 @@ frontend/src/
 │   ├── EditableTitle.tsx             # In-place conversation title editing
 │   └── ThemeToggle.tsx               # Theme switching component
 ├── services/
-│   └── api.ts                        # API client with JWT token management
+│   ├── api.ts                        # API client with JWT token management
+│   └── modelsCache.ts                # Intelligent model caching service
 └── types/
     └── index.ts                      # TypeScript interfaces
 ```
@@ -222,6 +236,7 @@ frontend/src/
 - **📱 Responsive Login UI**: Beautiful authentication form with error handling
 - **🔄 State Management**: React Context for global authentication state
 - **🚪 Clean Logout**: Token cleanup and UI reset on logout
+- **🤖 Dynamic Model Selection**: 42+ Gemini models with intelligent caching
 - **🔍 Google Search Grounding**: Web search integration with result citations
 - **🌐 URL Context Detection**: Automatic URL detection and web page grounding
 - **📋 Enhanced Copy**: Full conversation copy including references and metadata
