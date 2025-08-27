@@ -195,6 +195,9 @@ dist
 .cache/
 public
 
+# Note: Uncommenting 'frontend\public' to include it in version control
+!frontend\public
+
 # Storybook build outputs
 .out
 .storybook-out
