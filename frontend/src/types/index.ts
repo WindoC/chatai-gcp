@@ -20,6 +20,7 @@ export interface Message {
   references?: Reference[];
   search_queries?: string[];
   grounding_supports?: GroundingSupport[];
+  url_context_urls?: string[];
   grounded?: boolean;
   created_at: string;
 }
@@ -46,6 +47,7 @@ export interface ConversationSummary {
 export interface ChatRequest {
   message: string;
   enable_search?: boolean;
+  url_context?: string[];
   encrypted?: boolean;
 }
 
@@ -56,6 +58,7 @@ export interface SSEEvent {
   references?: Reference[];
   search_queries?: string[];
   grounding_supports?: GroundingSupport[];
+  url_context_urls?: string[];
   grounded?: boolean;
   error?: string;
 }

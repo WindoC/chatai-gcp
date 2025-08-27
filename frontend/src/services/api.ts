@@ -141,7 +141,10 @@ export class APIService {
       ? `${API_BASE_URL}/api/chat/${conversationId}`
       : `${API_BASE_URL}/api/chat/`;
     
-    const chatRequest: ChatRequest = { message, enable_search: enableSearch };
+    const chatRequest: ChatRequest = { 
+      message, 
+      enable_search: enableSearch
+    };
     
     // Send the POST request and get the streaming response
     const headers = {
