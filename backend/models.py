@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Optional, Union
 from datetime import datetime
 from enum import Enum
 
@@ -18,10 +18,18 @@ class Message(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class EncryptedContent(BaseModel):
+    """Encrypted content model for Phase 4"""
+    content: str = Field(..., description="Base64 encoded encrypted data")
+    encrypted: bool = True
+    key_hash: str = Field(..., description="SHA256 hash of AES key")
+
+
 class ChatRequest(BaseModel):
     """Chat request model"""
-    message: str = Field(..., min_length=1, max_length=4000)
+    message: Union[str, EncryptedContent] = Field(..., description="Message content (plaintext or encrypted)")
     encrypted: bool = False  # Phase 4 feature
+    key_hash: Optional[str] = Field(None, description="SHA256 hash of AES key for encrypted messages")
 
 
 class StarRequest(BaseModel):
@@ -75,6 +83,17 @@ class HealthCheck(BaseModel):
     status: str = "healthy"
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     version: str = "1.0.0"
+
+
+class EncryptionValidationRequest(BaseModel):
+    """Encryption key validation request"""
+    key_hash: str = Field(..., description="SHA256 hash of AES key to validate")
+
+
+class EncryptionValidationResponse(BaseModel):
+    """Encryption key validation response"""
+    valid: bool
+    message: Optional[str] = None
 
 
 class APIResponse(BaseModel):
