@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 
 interface ChatInputProps {
-  onSendMessage: (message: string) => void;
+  onSendMessage: (message: string, enableSearch?: boolean) => void;
   disabled?: boolean;
   placeholder?: string;
   shouldFocus?: boolean;
@@ -16,13 +16,15 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   onFocused
 }) => {
   const [message, setMessage] = useState('');
+  const [enableSearch, setEnableSearch] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (message.trim() && !disabled) {
-      onSendMessage(message.trim());
+      onSendMessage(message.trim(), enableSearch);
       setMessage('');
+      setEnableSearch(false); // Auto-reset after sending
     }
   };
 
@@ -48,9 +50,29 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   }, [shouldFocus, disabled, onFocused]);
 
   return (
-    <div className="border-t border-gray-200 dark:border-gray-700 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm p-6 transition-colors duration-200">
+    <div className="relative z-40 border-t border-gray-200 dark:border-gray-700 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm p-6 transition-colors duration-200">
       <form onSubmit={handleSubmit} className="max-w-4xl mx-auto">
         <div className="flex items-end space-x-4">
+          {/* Search Toggle Button */}
+          <button
+            type="button"
+            onClick={() => setEnableSearch(!enableSearch)}
+            disabled={disabled}
+            className={`
+              p-3 rounded-2xl transition-all duration-200 min-h-[56px] flex items-center justify-center
+              ${enableSearch
+                ? 'bg-primary-500 text-white shadow-soft hover:bg-primary-600'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+              }
+              disabled:opacity-50 disabled:cursor-not-allowed
+              focus:outline-none focus:ring-2 focus:ring-primary-500
+            `}
+            title="Search the web for current information"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </button>
           <div className="flex-1 relative">
             <textarea
               ref={textareaRef}

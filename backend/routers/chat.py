@@ -2,7 +2,8 @@ from fastapi import APIRouter, HTTPException, Request, Depends
 from fastapi.responses import StreamingResponse
 import json
 import logging
-from typing import AsyncGenerator
+import asyncio
+from typing import AsyncGenerator, Optional, List
 from models import ChatRequest, Message, MessageRole
 from services import gemini_service, firestore_service
 from middleware.auth_middleware import get_current_user
@@ -13,13 +14,14 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
 
-async def create_sse_stream(message: str, conversation_id: str = None) -> AsyncGenerator[str, None]:
+async def create_sse_stream(message: str, conversation_id: str = None, enable_search: bool = False) -> AsyncGenerator[str, None]:
     """
     Create Server-Sent Events stream for chat response
     
     Args:
         message: User message
         conversation_id: Optional existing conversation ID
+        enable_search: Enable Google Search grounding
         
     Yields:
         str: SSE formatted data
@@ -40,33 +42,68 @@ async def create_sse_stream(message: str, conversation_id: str = None) -> AsyncG
         if not conversation_id:
             yield f"data: {json.dumps({'type': 'conversation_start'})}\n\n"
         
-        # Stream AI response
-        response_chunks = []
-        async for chunk in gemini_service.generate_response_stream(message, conversation_history):
-            response_chunks.append(chunk)
-            yield f"data: {json.dumps({'type': 'chunk', 'content': chunk})}\n\n"
+        # Always use grounding method to support URL auto-detection and search
+        # URL context is auto-detected from message content in gemini_service
+        complete_response, references, search_queries, grounding_supports, url_context_urls, grounded = await gemini_service.generate_response_with_grounding(
+            message, conversation_history, enable_search, None
+        )
         
-        # Combine all chunks for complete response
-        complete_response = "".join(response_chunks)
+        # Stream the complete response in chunks for consistency
+        chunk_size = 50  # Characters per chunk
+        for i in range(0, len(complete_response), chunk_size):
+            chunk = complete_response[i:i + chunk_size]
+            yield f"data: {json.dumps({'type': 'chunk', 'content': chunk})}\n\n"
+            # Small delay to simulate streaming
+            await asyncio.sleep(0.05)
         
         # Save conversation to Firestore
         if conversation_id:
             # Add to existing conversation
             user_message = Message(role=MessageRole.USER, content=message)
-            await firestore_service.add_message_to_conversation(
-                conversation_id, user_message, complete_response
+            ai_message = Message(
+                role=MessageRole.AI, 
+                content=complete_response,
+                references=references,
+                search_queries=search_queries,
+                grounding_supports=grounding_supports,
+                url_context_urls=url_context_urls,
+                grounded=grounded
+            )
+            await firestore_service.add_message_to_conversation_with_grounding(
+                conversation_id, user_message, ai_message
             )
             final_conversation_id = conversation_id
         else:
             # Create new conversation
             user_message = Message(role=MessageRole.USER, content=message)
+            ai_message = Message(
+                role=MessageRole.AI, 
+                content=complete_response,
+                references=references,
+                search_queries=search_queries,
+                grounding_supports=grounding_supports,
+                url_context_urls=url_context_urls,
+                grounded=grounded
+            )
             title = await gemini_service.generate_title(message)
-            final_conversation_id = await firestore_service.create_conversation(
-                user_message, complete_response, title
+            final_conversation_id = await firestore_service.create_conversation_with_grounding(
+                user_message, ai_message, title
             )
         
-        # Send final event with conversation ID
-        yield f"data: {json.dumps({'type': 'done', 'conversation_id': final_conversation_id})}\n\n"
+        # Send final event with conversation ID and grounding metadata
+        final_data = {
+            'type': 'done', 
+            'conversation_id': final_conversation_id
+        }
+        if grounded:
+            final_data.update({
+                'references': [ref.dict() for ref in references],
+                'search_queries': search_queries,
+                'grounding_supports': [support.dict() for support in grounding_supports],
+                'url_context_urls': url_context_urls,
+                'grounded': grounded
+            })
+        yield f"data: {json.dumps(final_data)}\n\n"
         
     except Exception as e:
         logger.error(f"Error in SSE stream: {e}")
@@ -95,7 +132,7 @@ async def start_chat(
         logger.info(f"Starting new chat with message: {chat_request.message[:100]}...")
         
         return StreamingResponse(
-            create_sse_stream(chat_request.message),
+            create_sse_stream(chat_request.message, enable_search=chat_request.enable_search),
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",
@@ -139,7 +176,7 @@ async def continue_chat(
             raise HTTPException(status_code=404, detail="Conversation not found")
         
         return StreamingResponse(
-            create_sse_stream(chat_request.message, conversation_id),
+            create_sse_stream(chat_request.message, conversation_id, chat_request.enable_search),
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",

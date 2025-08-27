@@ -17,14 +17,14 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan management"""
-    logger.info("Starting ChatAI-GCP backend...")
+    logger.info("Starting Chat-AI backend...")
     yield
-    logger.info("Shutting down ChatAI-GCP backend...")
+    logger.info("Shutting down Chat-AI backend...")
 
 
 # Create FastAPI app
 app = FastAPI(
-    title="ChatAI-GCP API",
+    title="Chat-AI API",
     description="Secure AI chat application with Google Gemini integration",
     version="1.0.0",
     lifespan=lifespan
@@ -63,7 +63,7 @@ async def health_check():
 async def root():
     """Root endpoint"""
     return {
-        "message": "ChatAI-GCP API is running",
+        "message": "Chat-AI API is running",
         "version": "1.0.0",
         "docs": "/docs"
     }

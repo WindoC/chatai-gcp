@@ -1,7 +1,27 @@
+export interface GroundingSupport {
+  start_index: number;
+  end_index: number;
+  text: string;
+  reference_indices: number[];
+}
+
+export interface Reference {
+  id: number;
+  title: string;
+  url: string;
+  domain: string;
+  snippet?: string;
+}
+
 export interface Message {
   message_id?: string;
   role: 'user' | 'ai';
   content: string;
+  references?: Reference[];
+  search_queries?: string[];
+  grounding_supports?: GroundingSupport[];
+  url_context_urls?: string[];
+  grounded?: boolean;
   created_at: string;
 }
 
@@ -26,6 +46,8 @@ export interface ConversationSummary {
 
 export interface ChatRequest {
   message: string;
+  enable_search?: boolean;
+  url_context?: string[];
   encrypted?: boolean;
 }
 
@@ -33,5 +55,10 @@ export interface SSEEvent {
   type: 'conversation_start' | 'chunk' | 'done' | 'error';
   content?: string;
   conversation_id?: string;
+  references?: Reference[];
+  search_queries?: string[];
+  grounding_supports?: GroundingSupport[];
+  url_context_urls?: string[];
+  grounded?: boolean;
   error?: string;
 }

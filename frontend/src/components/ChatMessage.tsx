@@ -4,6 +4,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import remarkGfm from 'remark-gfm';
 import { Message } from '../types';
+import { References } from './References';
 
 interface ChatMessageProps {
   message: Message;
@@ -16,9 +17,27 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isStreaming =
 
   const copyToClipboard = async () => {
     try {
-      const markdownContent = isUser 
+      let markdownContent = isUser 
         ? `**User:** ${message.content}`
         : `**Assistant:** ${message.content}`;
+      
+      // Add references for AI messages with grounding
+      if (!isUser && message.references && message.references.length > 0) {
+        markdownContent += '\n\n**References:**\n';
+        message.references.forEach(ref => {
+          markdownContent += `[${ref.id}] ${ref.title}\n    ${ref.url}\n`;
+        });
+      }
+      
+      // Add search queries if available
+      if (!isUser && message.search_queries && message.search_queries.length > 0) {
+        markdownContent += '\n**Search Queries:** ' + message.search_queries.join(', ');
+      }
+      
+      // Add URL context if available
+      if (!isUser && message.url_context_urls && message.url_context_urls.length > 0) {
+        markdownContent += '\n**URL Context:** ' + message.url_context_urls.join('\n    ');
+      }
       
       await navigator.clipboard.writeText(markdownContent);
       setCopySuccess(true);
@@ -35,7 +54,9 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isStreaming =
           relative max-w-[75%] px-5 py-4 rounded-2xl shadow-soft transition-all duration-200
           ${isUser 
             ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-primary-500/20' 
-            : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100'
+            : message.grounded 
+              ? 'bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 border border-blue-200 dark:border-blue-800 text-gray-900 dark:text-gray-100'
+              : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100'
           }
           ${isStreaming ? 'animate-pulse' : ''}
         `}
@@ -43,10 +64,61 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isStreaming =
         {isUser ? (
           <p className="whitespace-pre-wrap">{message.content}</p>
         ) : (
-          <div className="prose prose-sm max-w-none dark:prose-invert">
-            <ReactMarkdown
+          <>
+            {/* Grounding badge */}
+            {message.grounded && (
+              <div className="flex items-center mb-3 pb-2 border-b border-blue-200 dark:border-blue-800">
+                {message.url_context_urls && message.url_context_urls.length > 0 ? (
+                  <>
+                    <svg className="w-4 h-4 text-blue-600 dark:text-blue-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                    </svg>
+                    <span className="text-xs font-medium text-blue-700 dark:text-blue-300">
+                      URL context response ({message.url_context_urls.length} URL{message.url_context_urls.length > 1 ? 's' : ''})
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4 text-blue-600 dark:text-blue-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    <span className="text-xs font-medium text-blue-700 dark:text-blue-300">
+                      Web-grounded response
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
+            
+            <div className="prose prose-sm max-w-none dark:prose-invert">
+              <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
+                // Style inline citations
+                p({ children }) {
+                  if (typeof children === 'string') {
+                    // Convert citation numbers to styled spans
+                    const parts = children.split(/(\[\d+\])/);
+                    return (
+                      <p>
+                        {parts.map((part, index) => {
+                          if (/^\[\d+\]$/.test(part)) {
+                            return (
+                              <span 
+                                key={index}
+                                className="inline-block text-xs bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300 px-1 py-0.5 rounded mx-0.5 font-medium"
+                              >
+                                {part}
+                              </span>
+                            );
+                          }
+                          return part;
+                        })}
+                      </p>
+                    );
+                  }
+                  return <p>{children}</p>;
+                },
                 code({ node, inline, className, children, ...props }: any) {
                   const match = /language-(\w+)/.exec(className || '');
                   return !inline && match ? (
@@ -105,7 +177,13 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isStreaming =
             >
               {message.content}
             </ReactMarkdown>
+            
+            {/* References */}
+            {message.references && message.references.length > 0 && (
+              <References references={message.references} />
+            )}
           </div>
+          </>
         )}
         
         {isStreaming && !isUser && (

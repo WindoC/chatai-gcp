@@ -7,12 +7,14 @@ This project is a **secure AI chat web application** that allows a **single pred
 The platform includes:
 
 * **Streaming chat (SSE)**
-* **Markdown rendering**
+* **Markdown rendering with syntax highlighting**
+* **Google Search grounding with web citations**
+* **Automatic URL context detection**
 * **Single-user authentication via JWT**
 * **Conversation history with manual management** (no auto-expiration)
 * **Bulk delete of non-starred conversations**
 * **UI inspired by OpenAI ChatGPT**
-* **Optional end-to-end AES encryption (Phase 2)**
+* **Optional end-to-end AES encryption (Phase 4)**
 
 Deployment is on **Google App Engine Standard (Python 3.13)** with **Firestore Native** as the database.
 
@@ -22,9 +24,11 @@ Deployment is on **Google App Engine Standard (Python 3.13)** with **Firestore N
 
 * Deliver a **fast, simple, secure AI chat interface**.
 * Support **single-user mode** with credentials from environment variables.
-* Provide **streaming AI responses** with markdown rendering.
+* Provide **streaming AI responses** with markdown rendering and web grounding.
+* Enable **Google Search grounding** with real-time web results and citations.
+* Support **automatic URL context detection** for web page grounding.
 * Allow user to **manually manage conversation history** (delete one or bulk delete non-starred).
-* Phase 2: Add **AES end-to-end encryption** for sensitive conversations.
+* Phase 4: Add **AES end-to-end encryption** for sensitive conversations.
 
 ---
 
@@ -36,7 +40,11 @@ Deployment is on **Google App Engine Standard (Python 3.13)** with **Firestore N
 
 * Real-time **streaming responses** using **Server-Sent Events (SSE)**.
 * **Markdown rendering** for AI output (code blocks, tables, formatting).
-* **Gemini AI only**, with configuration from environment variables.
+* **Google Search grounding** with toggle button to enable web search integration.
+* **Automatic URL context detection** - URLs in messages are automatically used for web page grounding.
+* **Citation display** - Grounded responses show inline citations with clickable references.
+* **Reference management** - Structured display of sources with titles, URLs, and domains.
+* **Gemini 2.5 Flash integration** with google_search and url_context tools.
 
 #### Conversation History
 
