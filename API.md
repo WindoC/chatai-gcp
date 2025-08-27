@@ -126,8 +126,13 @@ Start a new conversation with streaming response.
 **Request Body:**
 ```json
 {
-  "message": "string",
-  "encrypted": false  // Phase 4: true if message is encrypted
+  "message": "string" | {
+    "content": "base64_encrypted_data",
+    "encrypted": true,
+    "key_hash": "sha256_hash"
+  },
+  "encrypted": false,  // true if message is encrypted
+  "key_hash": "sha256_hash"  // Required for encrypted messages
 }
 ```
 
@@ -139,17 +144,17 @@ Connection: keep-alive
 
 data: {"type": "conversation_id", "conversation_id": "uuid"}
 
-data: {"type": "chunk", "content": "Hello"}
+data: {"type": "chunk", "content": "Hello", "encrypted": false}
 
-data: {"type": "chunk", "content": " there!"}
+data: {"type": "chunk", "content": "base64_encrypted_data", "encrypted": true, "key_hash": "sha256_hash"}
 
 data: {"type": "done", "conversation_id": "uuid"}
 ```
 
 **Error Responses:**
-- `400`: Missing or invalid message
+- `400`: Missing or invalid message, or missing encryption key hash
 - `401`: Unauthorized
-- `501`: Encryption required but not provided (Phase 4)
+- `501`: Encryption is enabled but message is not encrypted
 
 ---
 
@@ -163,8 +168,13 @@ Continue an existing conversation with streaming response.
 **Request Body:**
 ```json
 {
-  "message": "string",
-  "encrypted": false  // Phase 4
+  "message": "string" | {
+    "content": "base64_encrypted_data",
+    "encrypted": true,
+    "key_hash": "sha256_hash"
+  },
+  "encrypted": false,  // true if message is encrypted
+  "key_hash": "sha256_hash"  // Required for encrypted messages
 }
 ```
 
@@ -172,8 +182,8 @@ Continue an existing conversation with streaming response.
 
 **Error Responses:**
 - `404`: Conversation not found
-- `400`: Invalid message format
-- `501`: Encryption required but not provided (Phase 4)
+- `400`: Invalid message format or missing encryption key hash
+- `501`: Encryption is enabled but message is not encrypted
 
 ## 3. Conversation Management
 
@@ -214,7 +224,9 @@ List all conversations for the user.
 ### GET /conversations/{conversation_id}
 Get full conversation with all messages.
 
-**Headers:** `Authorization: Bearer <access_token>`
+**Headers:** 
+- `Authorization: Bearer <access_token>`
+- `X-Key-Hash: sha256_hash` (Optional: for decrypting encrypted messages)
 
 **Response (200):**
 ```json
@@ -363,10 +375,10 @@ Get current user information.
 }
 ```
 
-## 5. Phase 4: Encryption Endpoints
+## 5. Encryption Management Endpoints
 
-### POST /encryption/validate
-Validate AES key hash (Phase 4 only).
+### POST /api/encryption/validate
+Validate AES key hash for end-to-end encryption.
 
 **Headers:** `Authorization: Bearer <access_token>`
 
@@ -382,10 +394,39 @@ Validate AES key hash (Phase 4 only).
 {
   "success": true,
   "data": {
-    "valid": true
-  }
+    "valid": true,
+    "encryption_enabled": true
+  },
+  "message": "Key hash validated successfully"
 }
 ```
+
+**Error Responses:**
+- `400`: Invalid key hash
+- `500`: Server error during validation
+
+---
+
+### GET /api/encryption/status
+Get current encryption configuration and status.
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "encryption_enabled": true,
+    "key_hash_configured": true
+  },
+  "message": "Encryption status retrieved successfully"
+}
+```
+
+**Error Responses:**
+- `401`: Unauthorized
+- `500`: Server error
 
 ## Error Codes
 
@@ -403,12 +444,22 @@ Validate AES key hash (Phase 4 only).
 - `CHAT_STREAM_ERROR`: Error during streaming response
 - `CHAT_ENCRYPTION_REQUIRED`: Encryption enabled but message not encrypted
 - `CHAT_DECRYPTION_FAILED`: Failed to decrypt message
+- `CHAT_INVALID_KEY_HASH`: Invalid or missing encryption key hash
+- `CHAT_ENCRYPTION_FAILED`: Failed to encrypt response
 
 ### Conversation Errors
 - `CONV_NOT_FOUND`: Conversation does not exist
 - `CONV_ACCESS_DENIED`: User does not have access to conversation
 - `CONV_DELETE_FAILED`: Failed to delete conversation
 - `CONV_UPDATE_FAILED`: Failed to update conversation
+- `CONV_DECRYPTION_FAILED`: Failed to decrypt conversation messages
+
+### Encryption Errors
+- `ENCRYPTION_KEY_INVALID`: Encryption key hash is invalid
+- `ENCRYPTION_NOT_ENABLED`: Encryption is not enabled on server
+- `ENCRYPTION_REQUIRED`: Encryption is required but not provided
+- `DECRYPTION_FAILED`: Failed to decrypt encrypted content
+- `KEY_VALIDATION_FAILED`: Key hash validation failed
 
 ### General Errors
 - `VALIDATION_ERROR`: Request validation failed

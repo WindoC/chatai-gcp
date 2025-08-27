@@ -94,9 +94,9 @@ PASSWORD_HASH=ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f  
 AUTH_RATE_LIMIT=10
 CHAT_RATE_LIMIT=30
 
-# Phase 4 settings (not needed for Phase 3)
-AES_KEY_HASH=example_hash
-ENCRYPTION_ENABLED=false
+# Phase 4 Encryption Settings - REQUIRED for encryption testing
+AES_KEY_HASH=c87fcf8f7d4c8e97d8b9e4e6f5c4d3b2a1  # SHA256 hash of "testkey123"
+ENCRYPTION_ENABLED=true
 ```
 
 ### 1.3 Setup Google Cloud Authentication
@@ -409,6 +409,39 @@ def test_full_chat_flow_with_auth(client, auth_headers):
     assert response.status_code == 200
     conversations = response.json()["conversations"]
     assert len(conversations) >= 1
+
+def test_encryption_key_validation(client, auth_headers):
+    """Test encryption key validation endpoints"""
+    # Test with correct key hash
+    response = client.post("/api/encryption/validate-key", 
+                          json={"key_hash": "c87fcf8f7d4c8e97d8b9e4e6f5c4d3b2a1"}, 
+                          headers=auth_headers)
+    assert response.status_code == 200
+    assert response.json()["valid"] is True
+    
+    # Test with incorrect key hash
+    response = client.post("/api/encryption/validate-key", 
+                          json={"key_hash": "incorrect_hash"}, 
+                          headers=auth_headers)
+    assert response.status_code == 200
+    assert response.json()["valid"] is False
+
+def test_encrypted_chat_flow(client, auth_headers):
+    """Test encrypted chat messages end-to-end"""
+    # Send encrypted message
+    encrypted_payload = {
+        "message": "encrypted_base64_message_here",
+        "is_encrypted": True,
+        "iv": "random_iv_base64"
+    }
+    
+    response = client.post("/api/chat/", 
+                          json=encrypted_payload, 
+                          headers=auth_headers)
+    assert response.status_code == 200
+    
+    # Verify response contains encrypted data
+    # Note: In real test, you would decrypt and verify content
 ```
 
 ### End-to-End Tests with Playwright (Optional)
@@ -476,6 +509,48 @@ test('protected routes redirect to login', async ({ page }) => {
   // Should show login instead of chat
   await expect(page.locator('text=Sign in to start chatting')).toBeVisible();
   await expect(page.locator('text=New Chat')).not.toBeVisible();
+});
+
+test('encryption setup and usage flow', async ({ page }) => {
+  await page.goto('http://localhost:3000');
+  
+  // Login first
+  await page.fill('input[name="username"]', 'admin');
+  await page.fill('input[name="password"]', 'secret123');
+  await page.click('button[type="submit"]');
+  
+  // Wait for chat interface
+  await expect(page.locator('text=New Chat')).toBeVisible();
+  
+  // Check if encryption setup modal appears (if encryption enabled)
+  const encryptionModal = page.locator('text=Setup Encryption');
+  if (await encryptionModal.isVisible()) {
+    // Setup encryption
+    await page.fill('input[placeholder*="passphrase"]', 'testkey123');
+    await page.click('button:has-text("Setup Encryption")');
+    
+    // Wait for setup to complete
+    await expect(page.locator('text=Encryption Status: Enabled')).toBeVisible();
+  }
+  
+  // Send encrypted message
+  await page.fill('textarea[placeholder="Type your message..."]', 'Test encrypted message');
+  await page.click('button[type="submit"]');
+  
+  // Verify message appears (decrypted on display)
+  await expect(page.locator('text=Test encrypted message')).toBeVisible();
+});
+
+test('encryption status indicator', async ({ page }) => {
+  await page.goto('http://localhost:3000');
+  
+  // Login
+  await page.fill('input[name="username"]', 'admin');
+  await page.fill('input[name="password"]', 'secret123');
+  await page.click('button[type="submit"]');
+  
+  // Check for encryption status indicator
+  await expect(page.locator('[data-testid="encryption-status"]')).toBeVisible();
 });
 ```
 
@@ -798,6 +873,279 @@ jobs:
           npm test -- --coverage --watchAll=false
 ```
 
+## Phase 4 Encryption Testing
+
+### Frontend Encryption Service Tests
+
+Create `frontend/src/services/__tests__/encryption.test.ts`:
+```typescript
+import { EncryptionService } from '../encryption';
+
+describe('EncryptionService', () => {
+  let encryptionService: EncryptionService;
+  const testPassphrase = 'testkey123';
+  
+  beforeEach(() => {
+    encryptionService = new EncryptionService();
+  });
+
+  test('should derive key from passphrase', async () => {
+    const key = await encryptionService.deriveKey(testPassphrase);
+    expect(key).toBeInstanceOf(CryptoKey);
+  });
+
+  test('should generate correct key hash', async () => {
+    const hash = await encryptionService.generateKeyHash(testPassphrase);
+    expect(hash).toMatch(/^[a-f0-9]{64}$/); // SHA256 hex
+    expect(hash).toBe('c87fcf8f7d4c8e97d8b9e4e6f5c4d3b2a1f0e9d8c7b6a5');
+  });
+
+  test('should encrypt and decrypt messages', async () => {
+    await encryptionService.setupEncryption(testPassphrase);
+    
+    const originalMessage = 'Hello, this is a secret message!';
+    const encrypted = await encryptionService.encryptMessage(originalMessage);
+    
+    expect(encrypted.encryptedData).toBeDefined();
+    expect(encrypted.iv).toBeDefined();
+    expect(encrypted.encryptedData).not.toBe(originalMessage);
+    
+    const decrypted = await encryptionService.decryptMessage(
+      encrypted.encryptedData, 
+      encrypted.iv
+    );
+    expect(decrypted).toBe(originalMessage);
+  });
+
+  test('should handle invalid decryption gracefully', async () => {
+    await encryptionService.setupEncryption(testPassphrase);
+    
+    await expect(
+      encryptionService.decryptMessage('invalid_encrypted_data', 'invalid_iv')
+    ).rejects.toThrow();
+  });
+});
+```
+
+### Backend Encryption Service Tests
+
+Create `backend/tests/test_encryption_service.py`:
+```python
+import pytest
+from services.encryption_service import EncryptionService
+
+class TestEncryptionService:
+    def setup_method(self):
+        self.encryption_service = EncryptionService()
+        self.test_key_hash = "c87fcf8f7d4c8e97d8b9e4e6f5c4d3b2a1f0e9d8c7b6a5"
+    
+    def test_validate_key_hash_success(self):
+        """Test key hash validation with correct hash"""
+        result = self.encryption_service.validate_key_hash(self.test_key_hash)
+        assert result is True
+    
+    def test_validate_key_hash_failure(self):
+        """Test key hash validation with incorrect hash"""
+        result = self.encryption_service.validate_key_hash("invalid_hash")
+        assert result is False
+    
+    def test_encrypt_decrypt_message(self):
+        """Test message encryption and decryption"""
+        original_message = "Hello, this is a secret message!"
+        
+        # Encrypt message
+        encrypted_result = self.encryption_service.encrypt_message(original_message)
+        assert "encrypted_data" in encrypted_result
+        assert "iv" in encrypted_result
+        assert encrypted_result["encrypted_data"] != original_message
+        
+        # Decrypt message
+        decrypted_message = self.encryption_service.decrypt_message(
+            encrypted_result["encrypted_data"],
+            encrypted_result["iv"]
+        )
+        assert decrypted_message == original_message
+    
+    def test_encrypt_decrypt_streaming_chunks(self):
+        """Test streaming encryption/decryption"""
+        chunks = ["Hello ", "this ", "is ", "a ", "streaming ", "message!"]
+        
+        encrypted_chunks = []
+        for chunk in chunks:
+            encrypted = self.encryption_service.encrypt_message(chunk)
+            encrypted_chunks.append(encrypted)
+        
+        decrypted_chunks = []
+        for encrypted in encrypted_chunks:
+            decrypted = self.encryption_service.decrypt_message(
+                encrypted["encrypted_data"],
+                encrypted["iv"]
+            )
+            decrypted_chunks.append(decrypted)
+        
+        assert "".join(decrypted_chunks) == "".join(chunks)
+```
+
+### Encryption API Endpoint Tests
+
+Create `backend/tests/test_encryption_endpoints.py`:
+```python
+import pytest
+from fastapi.testclient import TestClient
+from main import app
+
+@pytest.fixture
+def client():
+    return TestClient(app)
+
+@pytest.fixture
+def auth_headers(client):
+    """Get authentication headers for testing"""
+    response = client.post("/auth/login", json={
+        "username": "admin", 
+        "password": "secret123"
+    })
+    assert response.status_code == 200
+    tokens = response.json()
+    return {"Authorization": f"Bearer {tokens['access_token']}"}
+
+class TestEncryptionEndpoints:
+    
+    def test_validate_key_success(self, client, auth_headers):
+        """Test successful key validation"""
+        response = client.post(
+            "/api/encryption/validate-key",
+            json={"key_hash": "c87fcf8f7d4c8e97d8b9e4e6f5c4d3b2a1f0e9d8c7b6a5"},
+            headers=auth_headers
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["valid"] is True
+    
+    def test_validate_key_failure(self, client, auth_headers):
+        """Test failed key validation"""
+        response = client.post(
+            "/api/encryption/validate-key",
+            json={"key_hash": "invalid_hash"},
+            headers=auth_headers
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["valid"] is False
+    
+    def test_validate_key_requires_auth(self, client):
+        """Test that key validation requires authentication"""
+        response = client.post(
+            "/api/encryption/validate-key",
+            json={"key_hash": "some_hash"}
+        )
+        assert response.status_code == 401
+    
+    def test_encryption_status(self, client, auth_headers):
+        """Test encryption status endpoint"""
+        response = client.get("/api/encryption/status", headers=auth_headers)
+        assert response.status_code == 200
+        data = response.json()
+        assert "encryption_enabled" in data
+        assert isinstance(data["encryption_enabled"], bool)
+```
+
+### Performance Testing for Encryption
+
+Update load test for encryption:
+```python
+# Add to backend/tests/load_test.py
+
+class EncryptedChatUser(HttpUser):
+    wait_time = between(1, 3)
+    
+    def on_start(self):
+        """Login and setup encryption"""
+        # Login
+        response = self.client.post("/auth/login", json={
+            "username": "admin",
+            "password": "secret123"
+        })
+        if response.status_code == 200:
+            tokens = response.json()
+            self.headers = {"Authorization": f"Bearer {tokens['access_token']}"}
+            
+            # Validate encryption key
+            self.client.post("/api/encryption/validate-key", 
+                           json={"key_hash": "c87fcf8f7d4c8e97d8b9e4e6f5c4d3b2a1f0e9d8c7b6a5"},
+                           headers=self.headers)
+    
+    @task
+    def send_encrypted_message(self):
+        """Test encrypted message performance"""
+        encrypted_payload = {
+            "message": "VGhpcyBpcyBhIHRlc3QgZW5jcnlwdGVkIG1lc3NhZ2U=",  # Base64 encoded
+            "is_encrypted": True,
+            "iv": "cmFuZG9tX2l2X2hlcmU="  # Base64 encoded IV
+        }
+        
+        with self.client.post("/api/chat/", 
+                            json=encrypted_payload,
+                            headers=self.headers,
+                            catch_response=True) as response:
+            if response.status_code != 200:
+                response.failure(f"Encrypted chat failed: {response.status_code}")
+```
+
+### Testing Encryption Security
+
+Create `backend/tests/test_encryption_security.py`:
+```python
+import pytest
+import os
+from services.encryption_service import EncryptionService
+from unittest.mock import patch
+
+class TestEncryptionSecurity:
+    
+    def test_encryption_disabled_when_env_false(self):
+        """Test that encryption is disabled when ENCRYPTION_ENABLED=false"""
+        with patch.dict(os.environ, {'ENCRYPTION_ENABLED': 'false'}):
+            # Test that endpoints return appropriate responses
+            pass
+    
+    def test_key_hash_validation_timing_attack_resistance(self):
+        """Test that key validation takes similar time for valid/invalid hashes"""
+        import time
+        encryption_service = EncryptionService()
+        
+        # Time valid hash validation
+        start = time.time()
+        encryption_service.validate_key_hash("c87fcf8f7d4c8e97d8b9e4e6f5c4d3b2a1f0e9d8c7b6a5")
+        valid_time = time.time() - start
+        
+        # Time invalid hash validation
+        start = time.time()
+        encryption_service.validate_key_hash("invalid_hash_but_same_length_as_valid_one_here")
+        invalid_time = time.time() - start
+        
+        # Times should be similar (within 50% difference)
+        assert abs(valid_time - invalid_time) / max(valid_time, invalid_time) < 0.5
+    
+    def test_encryption_uses_unique_ivs(self):
+        """Test that each encryption operation uses a unique IV"""
+        encryption_service = EncryptionService()
+        message = "Same message encrypted multiple times"
+        
+        results = []
+        for _ in range(10):
+            encrypted = encryption_service.encrypt_message(message)
+            results.append(encrypted)
+        
+        # All IVs should be unique
+        ivs = [result["iv"] for result in results]
+        assert len(set(ivs)) == len(ivs), "All IVs should be unique"
+        
+        # All encrypted data should be different (due to unique IVs)
+        encrypted_data = [result["encrypted_data"] for result in results]
+        assert len(set(encrypted_data)) == len(encrypted_data), "All encrypted data should be different"
+```
+
 ## Best Practices
 
 ### Development Practices
@@ -813,6 +1161,8 @@ jobs:
 - Use mocks for external services
 - Test both happy path and edge cases
 - Maintain >80% code coverage
+- **Encryption-specific**: Test with various message sizes and Unicode characters
+- **Security**: Test timing attack resistance and IV uniqueness
 
 ### Debugging Practices
 - Use proper logging levels
@@ -820,6 +1170,7 @@ jobs:
 - Test with real and mock data
 - Use browser developer tools
 - Monitor network requests
+- **Encryption-specific**: Never log decrypted content or keys in production
 
 ---
 

@@ -2,30 +2,43 @@
 
 ## 1. System Architecture
 
-### 1.1 High-Level Architecture
+### 1.1 High-Level Architecture (Phase 4: With End-to-End Encryption)
 
 ```
-┌─────────────────┐    HTTPS/WSS     ┌──────────────────┐
-│   React Client  │ ←────────────── │  FastAPI Backend │
-│   + TailwindCSS │                  │  (Python 3.13)  │
-└─────────────────┘                  └──────────────────┘
-         │                                     │
-         │ LocalStorage                       │ 
-         │ (JWT, AES Key)                     │
-         │                                     ▼
-         │                           ┌─────────────────┐
-         │                           │   Firestore     │
-         │                           │   (Native)      │
-         │                           └─────────────────┘
-         │                                     │
-         └─────────────────────────────────────┼─────────────────┐
-                                              │                 │
-                                              ▼                 ▼
-                                    ┌─────────────────┐ ┌──────────────┐
-                                    │  Google Gemini  │ │ Google App   │
-                                    │      API        │ │   Engine     │
-                                    └─────────────────┘ └──────────────┘
+┌─────────────────────────┐    HTTPS/TLS    ┌──────────────────────────┐
+│   React Client          │ ←──────────────→ │  FastAPI Backend         │
+│   + TailwindCSS         │  🔐 AES-256-GCM  │  (Python 3.13)          │
+│   + Web Crypto API      │                  │  + Cryptography         │
+└─────────────────────────┘                  └──────────────────────────┘
+         │                                              │
+         │ LocalStorage                                │ 
+         │ (JWT, AES Key Hash)                        │
+         │ 🔐 Zero-Knowledge                           ▼
+         │                                   ┌─────────────────────┐
+         │                                   │   Firestore         │
+         │                                   │   (Native)          │
+         │                                   │   🔐 Encrypted      │
+         │                                   │   Conversation      │
+         │                                   │   Storage           │
+         │                                   └─────────────────────┘
+         │                                              │
+         └──────────────────────────────────────────────┼─────────────────┐
+                                                       │                 │
+                                                       ▼                 ▼
+                                             ┌─────────────────┐ ┌──────────────┐
+                                             │  Google Gemini  │ │ Google App   │
+                                             │      API        │ │   Engine     │
+                                             │  (Processes     │ │              │
+                                             │   Plaintext)    │ │              │
+                                             └─────────────────┘ └──────────────┘
 ```
+
+**🔐 Encryption Flow:**
+- **Client**: Encrypts messages with AES-256-GCM before transmission
+- **Transport**: Double encryption (TLS + AES) for maximum security  
+- **Server**: Temporarily decrypts for AI processing, encrypts responses
+- **Storage**: All conversation history stored encrypted in Firestore
+- **Zero-Knowledge**: Server validates key hashes but never stores plaintext
 
 ### 1.2 Component Breakdown
 
@@ -33,14 +46,15 @@
 - **Chat Interface**: Message display, input handling, streaming
 - **Conversation Sidebar**: History, starring, bulk operations
 - **Authentication**: Login form, JWT management
-- **Settings Panel**: AES key management (Phase 4)
+- **Encryption Settings**: AES key setup and management modal
+- **Encryption Status**: Visual encryption state indicator
 - **Markdown Renderer**: Code highlighting, table support
 
 #### Backend Services
 - **Authentication Service**: JWT handling, single-user validation
 - **Chat Service**: Gemini API integration, SSE streaming
 - **Conversation Service**: Firestore CRUD operations
-- **Encryption Service**: AES-GCM encryption/decryption (Phase 4)
+- **Encryption Service**: AES-GCM encryption/decryption with zero-knowledge validation
 
 ## 2. Data Flow
 
@@ -52,29 +66,40 @@
 4. Auto-refresh using refresh_token when access_token expires
 ```
 
-### 2.2 Chat Flow
+### 2.2 Chat Flow (With End-to-End Encryption)
 ```
-1. User sends message → Frontend encrypts (Phase 4) → POST /chat
-2. Backend validates JWT → Decrypts message (Phase 4) → Call Gemini API
-3. Stream response via SSE → Frontend decrypts (Phase 4) → Render markdown
-4. Save conversation to Firestore → Update UI with conversation ID
+1. User sends message → Frontend encrypts with AES-256-GCM → POST /chat
+2. Backend validates JWT + Key Hash → Decrypts message → Call Gemini API  
+3. Stream response via SSE → Backend encrypts chunks → Frontend decrypts → Render markdown
+4. Save encrypted conversation to Firestore → Update UI with conversation ID
 ```
 
-### 2.3 Conversation Management Flow
+**🔐 Encryption Details:**
+- **Step 1**: Web Crypto API encrypts message with random IV
+- **Step 2**: Server validates SHA256 key hash, decrypts for AI processing  
+- **Step 3**: Each streaming chunk encrypted individually for real-time decryption
+- **Step 4**: Conversation stored encrypted, only accessible with correct key
+
+### 2.3 Conversation Management Flow (With Encryption)
 ```
 1. Load conversations → GET /conversations → Display in sidebar
-2. Select conversation → GET /conversations/{id} → Load chat history
-3. Continue chat → POST /chat/{id} → Append new messages
+2. Select conversation → GET /conversations/{id} + X-Key-Hash → Decrypt & load history  
+3. Continue chat → POST /chat/{id} → Encrypt & append new messages
 4. Star/unstar → POST /conversations/{id}/star → Update UI
 5. Delete → DELETE /conversations/{id} → Remove from sidebar
 6. Bulk delete → DELETE /conversations/nonstarred → Refresh sidebar
 ```
 
+**🔐 Encryption Details:**
+- **Step 2**: X-Key-Hash header enables server-side decryption of conversation history
+- **Step 3**: New messages encrypted before appending to existing conversation
+- **All Operations**: Maintain encryption consistency across conversation lifecycle
+
 ## 3. Database Schema
 
 ### 3.1 Firestore Collections
 
-#### Conversations Collection
+#### Conversations Collection (Phase 4: With Encryption)
 ```typescript
 interface Conversation {
   conversation_id: string;        // UUID
@@ -87,11 +112,23 @@ interface Conversation {
 
 interface Message {
   role: 'user' | 'ai';
-  content: string;               // Encrypted in Phase 4
+  content: string | EncryptedContent;  // Encrypted with AES-256-GCM
   created_at: Timestamp;
   message_id?: string;           // For message-level operations
 }
+
+interface EncryptedContent {
+  content: string;               // Base64 encoded: IV + ciphertext + auth tag  
+  encrypted: boolean;            // Always true for encrypted messages
+  key_hash: string;             // SHA256 hash for key validation
+}
 ```
+
+**🔐 Storage Security:**
+- **Zero-Knowledge**: Server never stores plaintext messages
+- **AES-256-GCM**: Authenticated encryption prevents tampering
+- **Random IVs**: Each message uses unique initialization vector
+- **Key Isolation**: Only key hashes stored for validation
 
 ### 3.2 Indexing Strategy
 - Primary: `last_updated DESC` for conversation listing
@@ -112,19 +149,28 @@ interface Message {
 - CSP headers for XSS protection
 - Rate limiting on authentication endpoints
 
-### 4.3 End-to-End Encryption (Phase 4)
+### 4.3 End-to-End Encryption (Phase 4: IMPLEMENTED ✅)
 ```
 Frontend (Web Crypto API):
-- AES-256-GCM encryption with random IV
-- Key derivation from user passphrase using PBKDF2
-- IV and encrypted data transmitted as base64
+- AES-256-GCM encryption with cryptographically secure random IVs
+- PBKDF2 key derivation (100,000 iterations) from user passphrase  
+- Base64 encoding: IV (12 bytes) + ciphertext + authentication tag
+- Local key storage with automatic cleanup on logout
 
-Backend (Python cryptography):
-- AES key validation via SHA256 hash
-- Decrypt incoming messages before Gemini API
-- Encrypt responses before transmission
-- Zero-knowledge: server never sees plaintext
+Backend (Python cryptography):  
+- SHA256 key hash validation (server never sees actual keys)
+- Temporary decryption for AI processing only
+- Real-time encryption of streaming responses  
+- Zero-knowledge architecture with secure error handling
 ```
+
+**🔐 Cryptographic Specifications:**
+- **Algorithm**: AES-256-GCM (AEAD - Authenticated Encryption with Associated Data)
+- **Key Size**: 256 bits (32 bytes)
+- **IV Size**: 96 bits (12 bytes) - optimal for GCM mode
+- **Key Derivation**: PBKDF2-SHA256 with 100,000 iterations
+- **Authentication**: 128-bit authentication tag prevents tampering
+- **Encoding**: Base64 for safe transport over HTTP/JSON
 
 ## 5. Performance Considerations
 
@@ -218,9 +264,9 @@ GOOGLE_API_KEY=gemini_api_key
 GOOGLE_CLOUD_PROJECT=project_id
 FIRESTORE_DATABASE=(default)
 
-# Phase 4: Encryption
-AES_KEY_HASH=sha256_of_aes_key
-ENCRYPTION_ENABLED=false
+# Phase 4: End-to-End Encryption (IMPLEMENTED ✅)
+AES_KEY_HASH=sha256_of_user_passphrase
+ENCRYPTION_ENABLED=true
 ```
 
 ### 8.3 Build and Deployment
