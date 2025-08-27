@@ -8,10 +8,13 @@ A secure AI chat web application powered by Google Gemini, built with FastAPI an
 
 ✅ **Working Features:**
 - **Real-time AI Chat**: Streaming responses from Google Gemini AI
+- **Dynamic Model Selection**: Choose from 42+ available Gemini models with intelligent caching
 - **Secure Authentication**: JWT-based single-user login with token refresh
 - **Protected Routes**: All chat and conversation endpoints require authentication
 - **Modern UI**: React frontend with TailwindCSS and ChatGPT-inspired design
 - **Complete Conversation Management**: CRUD, starring, bulk delete, title editing
+- **Google Search Grounding**: Web search integration with citations and references
+- **URL Context Detection**: Automatic web page context grounding
 - **Conversation Persistence**: Messages stored securely in Google Firestore
 - **Security Headers**: CSP, HSTS, XSS protection, and rate limiting
 - **Markdown Support**: Rich text rendering with syntax highlighting for code
@@ -24,6 +27,7 @@ A secure AI chat web application powered by Google Gemini, built with FastAPI an
 - Backend running at `http://localhost:8000`
 - Frontend running at `http://localhost:3000`
 - Login with your credentials to access the secure chat interface
+- Select from 42+ available Gemini models using the dropdown in the header
 - Create conversations, star favorites, and manage your chat history
 - Send messages and see AI respond in real-time with full authentication!
 
@@ -83,9 +87,10 @@ npm start
 2. **Login** with default credentials:
    - Username: `admin`
    - Password: `secret123`
-3. Create a new conversation and type: "Hello, who are you?"
-4. Watch the AI respond in real-time!
-5. Try starring conversations, editing titles, and bulk delete features
+3. **Select a model** from the dropdown in the header (42+ available models)
+4. Create a new conversation and type: "Hello, who are you?"
+5. Watch the AI respond in real-time with your selected model!
+6. Try starring conversations, editing titles, and bulk delete features
 
 **⚠️ Security Note:** Change the default password hash in production! The default PASSWORD_HASH in `.env.example` corresponds to "secret123".
 

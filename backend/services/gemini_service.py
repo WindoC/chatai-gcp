@@ -24,7 +24,7 @@ class GeminiService:
             logger.error(f"Failed to initialize Gemini client: {e}")
             raise
     
-    async def generate_response_stream(self, message: str, conversation_history: Optional[list] = None, enable_search: bool = False) -> AsyncGenerator[str, None]:
+    async def generate_response_stream(self, message: str, conversation_history: Optional[list] = None, enable_search: bool = False, model: str = "gemini-2.5-flash") -> AsyncGenerator[str, None]:
         """
         Generate streaming response from Gemini API
         
@@ -32,6 +32,7 @@ class GeminiService:
             message: User message
             conversation_history: Previous messages for context
             enable_search: Enable Google Search grounding
+            model: Gemini model to use
             
         Yields:
             str: Chunks of the AI response
@@ -55,7 +56,7 @@ class GeminiService:
             
             # Generate streaming response using async client
             async for chunk in await self.client.aio.models.generate_content_stream(
-                model='gemini-2.5-flash',
+                model=model,
                 contents=contents,
                 config=config
             ):
@@ -66,7 +67,7 @@ class GeminiService:
             logger.error(f"Error generating Gemini response: {e}")
             yield f"Error: Unable to generate response. Please try again."
     
-    async def generate_response_with_grounding(self, message: str, conversation_history: Optional[list] = None, enable_search: bool = False, url_context: Optional[List[str]] = None) -> Tuple[str, List[Reference], List[str], List[GroundingSupport], List[str], bool]:
+    async def generate_response_with_grounding(self, message: str, conversation_history: Optional[list] = None, enable_search: bool = False, url_context: Optional[List[str]] = None, model: str = "gemini-2.5-flash") -> Tuple[str, List[Reference], List[str], List[GroundingSupport], List[str], bool]:
         """
         Generate complete response with grounding metadata from Gemini API
         
@@ -75,6 +76,7 @@ class GeminiService:
             conversation_history: Previous messages for context
             enable_search: Enable Google Search grounding
             url_context: List of URLs to provide as context
+            model: Gemini model to use
             
         Returns:
             Tuple[str, List[Reference], List[str], List[GroundingSupport], List[str], bool]: Response text, references, search queries, grounding supports, URL context URLs, grounded flag
@@ -112,7 +114,7 @@ class GeminiService:
             
             # Generate complete response using async client
             response = await self.client.aio.models.generate_content(
-                model='gemini-2.5-flash',
+                model=model,
                 contents=contents,
                 config=config
             )
@@ -221,13 +223,14 @@ class GeminiService:
             logger.error(f"Error generating Gemini response with grounding: {e}")
             return "Error: Unable to generate response. Please try again.", [], [], [], [], False
     
-    async def generate_response(self, message: str, conversation_history: Optional[list] = None) -> str:
+    async def generate_response(self, message: str, conversation_history: Optional[list] = None, model: str = "gemini-2.5-flash") -> str:
         """
         Generate complete response from Gemini API (non-streaming)
         
         Args:
             message: User message
             conversation_history: Previous messages for context
+            model: Gemini model to use
             
         Returns:
             str: Complete AI response
@@ -235,7 +238,7 @@ class GeminiService:
         try:
             # Collect all chunks from streaming response
             response_chunks = []
-            async for chunk in self.generate_response_stream(message, conversation_history):
+            async for chunk in self.generate_response_stream(message, conversation_history, model=model):
                 response_chunks.append(chunk)
             
             return "".join(response_chunks)
@@ -259,7 +262,7 @@ class GeminiService:
             
             # Use the async client to generate title
             response = await self.client.aio.models.generate_content(
-                model='gemini-2.5-flash',
+                model='gemini-2.5-flash',  # Always use default model for titles
                 contents=prompt
             )
             
@@ -306,6 +309,72 @@ class GeminiService:
         except Exception as e:
             logger.error(f"Error inserting inline citations: {e}")
             return text  # Return original text on error
+    
+    async def get_available_models(self) -> List[Dict[str, str]]:
+        """
+        Get list of available Gemini models that support generateContent
+        
+        Returns:
+            List[Dict[str, str]]: List of models with id and name
+        """
+        try:
+            models = []
+            logger.info("Fetching available models from Google AI API...")
+            
+            # Use the synchronous models.list() method - it's not async
+            for model in self.client.models.list():
+                logger.debug(f"Checking model: {model.name}, supported_actions: {getattr(model, 'supported_actions', 'None')}")
+                
+                # Check if model supports generateContent action
+                if hasattr(model, 'supported_actions') and 'generateContent' in model.supported_actions:
+                    # Extract model name and create a display name
+                    model_id = model.name
+                    # Remove 'models/' prefix if present
+                    display_name = model_id.replace('models/', '')
+                    # Create a more readable name
+                    display_name = display_name.replace('gemini-', 'Gemini ').replace('-', ' ').title()
+                    
+                    models.append({
+                        'id': model_id,
+                        'name': display_name,
+                        'description': f'Google {display_name} model'
+                    })
+                    logger.info(f"Added model: {model_id} -> {display_name}")
+            
+            # Sort models by name
+            models.sort(key=lambda x: x['name'])
+            logger.info(f"Found {len(models)} models that support generateContent")
+            
+            # If no models found, return fallback
+            if not models:
+                logger.warning("No models found from API, returning fallback models")
+                return self._get_fallback_models()
+                
+            return models
+            
+        except Exception as e:
+            logger.error(f"Error fetching available models: {e}")
+            return self._get_fallback_models()
+    
+    def _get_fallback_models(self) -> List[Dict[str, str]]:
+        """Return fallback models if API fails"""
+        return [
+            {
+                'id': 'gemini-2.5-flash',
+                'name': 'Gemini 2.5 Flash',
+                'description': 'Fast and versatile model for most tasks'
+            },
+            {
+                'id': 'gemini-2.5-pro',
+                'name': 'Gemini 2.5 Pro',
+                'description': 'The most powerful model for demanding tasks'
+            },
+            {
+                'id': 'gemini-2.5-flash-lite',
+                'name': 'Gemini 2.5 Flash Lite',
+                'description': 'Best performance for complex reasoning tasks'
+            }
+        ]
 
 
 # Global service instance

@@ -127,6 +127,8 @@ Start a new conversation with streaming response.
 ```json
 {
   "message": "string",
+  "enable_search": false,  // Enable Google Search grounding
+  "model": "gemini-2.5-flash",  // Selected Gemini model (optional, defaults to gemini-2.5-flash)
   "encrypted": false  // Phase 4: true if message is encrypted
 }
 ```
@@ -164,6 +166,8 @@ Continue an existing conversation with streaming response.
 ```json
 {
   "message": "string",
+  "enable_search": false,  // Enable Google Search grounding
+  "model": "gemini-2.5-flash",  // Selected Gemini model (optional)
   "encrypted": false  // Phase 4
 }
 ```
@@ -175,7 +179,47 @@ Continue an existing conversation with streaming response.
 - `400`: Invalid message format
 - `501`: Encryption required but not provided (Phase 4)
 
-## 3. Conversation Management
+## 3. Models Endpoint
+
+### GET /api/models/
+Get list of available Gemini models that support generateContent.
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Response (200):**
+```json
+[
+  {
+    "id": "models/gemini-2.5-flash",
+    "name": "Gemini 2.5 Flash",
+    "description": "Google Gemini 2.5 Flash model"
+  },
+  {
+    "id": "models/gemini-2.5-pro", 
+    "name": "Gemini 2.5 Pro",
+    "description": "Google Gemini 2.5 Pro model"
+  },
+  {
+    "id": "models/gemini-2.0-flash-exp",
+    "name": "Gemini 2.0 Flash Exp", 
+    "description": "Google Gemini 2.0 Flash Exp model"
+  }
+]
+```
+
+**Response Details:**
+- Returns 42+ available models that support `generateContent`
+- Models are sorted alphabetically by name
+- Includes experimental, preview, and stable models
+- Falls back to default models if Google AI API is unavailable
+
+**Error Responses:**
+- `401`: Unauthorized
+- `500`: Failed to fetch models from Google AI API
+
+---
+
+## 4. Conversation Management
 
 ### GET /conversations
 List all conversations for the user.
@@ -330,7 +374,7 @@ Bulk delete all non-starred conversations.
 }
 ```
 
-## 4. Utility Endpoints
+## 5. Utility Endpoints
 
 ### GET /health
 Health check endpoint (no authentication required).
@@ -363,7 +407,7 @@ Get current user information.
 }
 ```
 
-## 5. Phase 4: Encryption Endpoints
+## 6. Phase 4: Encryption Endpoints
 
 ### POST /encryption/validate
 Validate AES key hash (Phase 4 only).

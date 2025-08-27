@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
 
-async def create_sse_stream(message: str, conversation_id: str = None, enable_search: bool = False) -> AsyncGenerator[str, None]:
+async def create_sse_stream(message: str, conversation_id: str = None, enable_search: bool = False, model: str = "gemini-2.5-flash") -> AsyncGenerator[str, None]:
     """
     Create Server-Sent Events stream for chat response
     
@@ -22,6 +22,7 @@ async def create_sse_stream(message: str, conversation_id: str = None, enable_se
         message: User message
         conversation_id: Optional existing conversation ID
         enable_search: Enable Google Search grounding
+        model: Gemini model to use
         
     Yields:
         str: SSE formatted data
@@ -45,7 +46,7 @@ async def create_sse_stream(message: str, conversation_id: str = None, enable_se
         # Always use grounding method to support URL auto-detection and search
         # URL context is auto-detected from message content in gemini_service
         complete_response, references, search_queries, grounding_supports, url_context_urls, grounded = await gemini_service.generate_response_with_grounding(
-            message, conversation_history, enable_search, None
+            message, conversation_history, enable_search, None, model
         )
         
         # Stream the complete response in chunks for consistency
@@ -132,7 +133,7 @@ async def start_chat(
         logger.info(f"Starting new chat with message: {chat_request.message[:100]}...")
         
         return StreamingResponse(
-            create_sse_stream(chat_request.message, enable_search=chat_request.enable_search),
+            create_sse_stream(chat_request.message, enable_search=chat_request.enable_search, model=chat_request.model),
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",
@@ -176,7 +177,7 @@ async def continue_chat(
             raise HTTPException(status_code=404, detail="Conversation not found")
         
         return StreamingResponse(
-            create_sse_stream(chat_request.message, conversation_id, chat_request.enable_search),
+            create_sse_stream(chat_request.message, conversation_id, chat_request.enable_search, chat_request.model),
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",

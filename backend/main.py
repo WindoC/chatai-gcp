@@ -7,6 +7,7 @@ import logging
 from datetime import datetime
 from routers import chat_router, conversations_router
 from routers.auth import router as auth_router
+from routers.models import router as models_router
 from middleware.security_middleware import add_security_headers, rate_limit_middleware
 
 # Configure logging
@@ -47,6 +48,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(chat_router)
 app.include_router(conversations_router)
+app.include_router(models_router)
 
 
 @app.get("/health")
