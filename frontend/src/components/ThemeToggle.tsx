@@ -38,7 +38,7 @@ export const ThemeToggle: React.FC = () => {
           />
           
           {/* Dropdown */}
-          <div className="absolute right-0 top-12 z-20 w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1">
+          <div className="absolute right-0 top-12 z-50 w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1">
             {themeOptions.map((option) => (
               <button
                 key={option.value}
