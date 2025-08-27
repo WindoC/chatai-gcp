@@ -24,9 +24,16 @@ export interface ConversationSummary {
   preview?: string;
 }
 
+export interface EncryptedContent {
+  content: string;
+  encrypted: boolean;
+  key_hash: string;
+}
+
 export interface ChatRequest {
-  message: string;
+  message: string | EncryptedContent;
   encrypted?: boolean;
+  key_hash?: string;
 }
 
 export interface SSEEvent {
@@ -34,4 +41,6 @@ export interface SSEEvent {
   content?: string;
   conversation_id?: string;
   error?: string;
+  encrypted?: boolean;
+  key_hash?: string;
 }

@@ -5,8 +5,11 @@ import { ConversationSidebar } from './components/ConversationSidebar';
 import { ThemeToggle } from './components/ThemeToggle';
 import { EditableTitle } from './components/EditableTitle';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { EncryptionSettings } from './components/EncryptionSettings';
+import { EncryptionStatus } from './components/EncryptionStatus';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { apiService } from './services/api';
+import { encryptionService } from './services/encryption';
 import { Message, ConversationSummary, SSEEvent } from './types';
 
 function ChatInterface() {
@@ -19,6 +22,8 @@ function ChatInterface() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingMessage, setStreamingMessage] = useState('');
   const [shouldFocusInput, setShouldFocusInput] = useState(false);
+  const [isEncryptionSettingsOpen, setIsEncryptionSettingsOpen] = useState(false);
+  const [encryptionEnabled, setEncryptionEnabled] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
 
@@ -30,6 +35,8 @@ function ChatInterface() {
 
   useEffect(() => {
     loadConversations();
+    // Initialize encryption state
+    setEncryptionEnabled(encryptionService.isEncryptionEnabled());
   }, []);
 
   const loadConversations = async () => {
@@ -241,6 +248,12 @@ function ChatInterface() {
     }
   };
 
+  const handleEncryptionEnabled = () => {
+    setEncryptionEnabled(true);
+    // Reload conversations to get updated encryption status
+    loadConversations();
+  };
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -296,6 +309,7 @@ function ChatInterface() {
                   </svg>
                 </button>
               )}
+              <EncryptionStatus onClick={() => setIsEncryptionSettingsOpen(true)} />
               <ThemeToggle />
               <button
                 onClick={logout}
@@ -383,6 +397,13 @@ function ChatInterface() {
           onFocused={() => setShouldFocusInput(false)}
         />
       </div>
+
+      {/* Encryption Settings Modal */}
+      <EncryptionSettings
+        isOpen={isEncryptionSettingsOpen}
+        onClose={() => setIsEncryptionSettingsOpen(false)}
+        onEncryptionEnabled={handleEncryptionEnabled}
+      />
     </div>
   );
 }

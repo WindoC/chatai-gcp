@@ -1,4 +1,5 @@
 import { Conversation, ConversationSummary, ChatRequest } from '../types';
+import { encryptionService } from './encryption';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
@@ -12,7 +13,7 @@ export class APIService {
     return APIService.instance;
   }
 
-  private getAuthHeaders(): HeadersInit {
+  private getAuthHeaders(includeEncryption: boolean = false): HeadersInit {
     const token = localStorage.getItem('access_token');
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
@@ -20,6 +21,14 @@ export class APIService {
     
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    // Add encryption headers if enabled and requested
+    if (includeEncryption && encryptionService.isEncryptionEnabled()) {
+      const keyHash = encryptionService.getKeyHash();
+      if (keyHash) {
+        headers['X-Key-Hash'] = keyHash;
+      }
     }
     
     return headers;
@@ -72,7 +81,7 @@ export class APIService {
 
   async getConversation(conversationId: string): Promise<Conversation> {
     const response = await fetch(`${API_BASE_URL}/api/conversations/${conversationId}`, {
-      headers: this.getAuthHeaders(),
+      headers: this.getAuthHeaders(true), // Include encryption headers
     });
     
     if (!response.ok) {
@@ -80,7 +89,16 @@ export class APIService {
       throw new Error('Failed to fetch conversation');
     }
     
-    return response.json();
+    const conversationData = await response.json();
+    
+    // Process conversation data through encryption service
+    try {
+      return await encryptionService.processConversationData(conversationData);
+    } catch (error) {
+      console.error('Failed to decrypt conversation data:', error);
+      // Return original data if decryption fails
+      return conversationData;
+    }
   }
 
   async deleteConversation(conversationId: string): Promise<void> {
@@ -141,11 +159,18 @@ export class APIService {
       ? `${API_BASE_URL}/api/chat/${conversationId}`
       : `${API_BASE_URL}/api/chat/`;
     
-    const chatRequest: ChatRequest = { message };
+    // Prepare message with encryption if enabled
+    const preparedMessage = await encryptionService.prepareMessageForAPI(message);
+    
+    const chatRequest: ChatRequest = {
+      message: preparedMessage.message,
+      encrypted: preparedMessage.encrypted,
+      key_hash: preparedMessage.keyHash
+    };
     
     // Send the POST request and get the streaming response
     const headers = {
-      ...this.getAuthHeaders(),
+      ...this.getAuthHeaders(true), // Include encryption headers
       'Accept': 'text/event-stream'
     };
     
@@ -215,7 +240,23 @@ export class APIService {
           
           for (const line of lines) {
             if (line.startsWith('data: ')) {
-              const data = line.slice(6);
+              let data = line.slice(6);
+              
+              // Process encrypted chunks if needed
+              try {
+                const parsed = JSON.parse(data);
+                if (parsed.type === 'chunk' && parsed.encrypted) {
+                  // Decrypt the chunk content
+                  const decryptedContent = await encryptionService.processStreamingChunk(parsed);
+                  parsed.content = decryptedContent;
+                  parsed.encrypted = false; // Mark as decrypted for frontend
+                  data = JSON.stringify(parsed);
+                }
+              } catch (error) {
+                // If parsing or decryption fails, use original data
+                console.warn('Failed to process streaming chunk:', error);
+              }
+              
               const event = new MessageEvent('message', { data });
               customEventSource.dispatchEvent(event);
             }
@@ -233,6 +274,38 @@ export class APIService {
 
     return customEventSource as EventSource;
   }
+
+  async validateEncryptionKey(keyHash: string): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/api/encryption/validate`, {
+      method: 'POST',
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify({ key_hash: keyHash }),
+    });
+    
+    if (!response.ok) {
+      await this.handleAuthError(response);
+      throw new Error('Failed to validate encryption key');
+    }
+    
+    return response.json();
+  }
+
+  async getEncryptionStatus(): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/api/encryption/status`, {
+      headers: this.getAuthHeaders(),
+    });
+    
+    if (!response.ok) {
+      await this.handleAuthError(response);
+      throw new Error('Failed to get encryption status');
+    }
+    
+    return response.json();
+  }
 }
 
 export const apiService = APIService.getInstance();
+
+// Export convenience functions
+export const validateEncryptionKey = (keyHash: string) => apiService.validateEncryptionKey(keyHash);
+export const getEncryptionStatus = () => apiService.getEncryptionStatus();
