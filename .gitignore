@@ -193,8 +193,10 @@ dist
 
 # Gatsby files
 .cache/
-# Note: Commented out 'public' as it conflicts with React's public directory
-# public
+public
+
+# Note: Uncommenting 'frontend\public' to include it in version control
+!frontend\public
 
 # Storybook build outputs
 .out
