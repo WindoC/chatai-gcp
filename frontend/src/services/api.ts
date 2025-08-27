@@ -136,12 +136,12 @@ export class APIService {
     return data.data.deleted_count;
   }
 
-  async createChatStream(message: string, conversationId?: string): Promise<EventSource> {
+  async createChatStream(message: string, conversationId?: string, enableSearch = false): Promise<EventSource> {
     const url = conversationId 
       ? `${API_BASE_URL}/api/chat/${conversationId}`
       : `${API_BASE_URL}/api/chat/`;
     
-    const chatRequest: ChatRequest = { message };
+    const chatRequest: ChatRequest = { message, enable_search: enableSearch };
     
     // Send the POST request and get the streaming response
     const headers = {
