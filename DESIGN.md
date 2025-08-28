@@ -218,9 +218,6 @@ GOOGLE_API_KEY=gemini_api_key
 GOOGLE_CLOUD_PROJECT=project_id
 FIRESTORE_DATABASE=(default)
 
-# Phase 4: Encryption
-AES_KEY_HASH=sha256_of_aes_key
-ENCRYPTION_ENABLED=false
 ```
 
 ### 8.3 Build and Deployment

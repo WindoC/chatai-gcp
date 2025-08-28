@@ -86,11 +86,6 @@ This project follows a 4-phase development approach:
 - Enhanced UI with search toggle and reference display
 - Dynamic Gemini model selection with intelligent caching
 
-### Phase 4: End-to-End AES Encryption
-- Web Crypto API implementation on frontend
-- Python cryptography on backend
-- Zero-knowledge encryption where server never sees plaintext
-- AES-256-GCM with random IV per message
 
 ## Development Commands
 
@@ -131,11 +126,6 @@ This project follows a 4-phase development approach:
 - Citation processing with inline reference insertion
 - Enhanced message display with grounding indicators and references
 
-### Phase 4 Encryption Details
-- AES-256-GCM encryption with Web Crypto API
-- PBKDF2 key derivation from user passphrase
-- SHA256 key validation between frontend/backend
-- Base64 transport encoding for encrypted payloads
 
 ## Environment Variables
 
@@ -150,11 +140,7 @@ This project follows a 4-phase development approach:
 - `AUTH_RATE_LIMIT` - Authentication rate limit per minute (default: 10)
 - `CHAT_RATE_LIMIT` - Chat API rate limit per minute (default: 30)
 
-### Phase 4 Optional Variables
-- `AES_KEY_HASH` - SHA256 hash of AES encryption key
-- `ENCRYPTION_ENABLED` - Enable/disable end-to-end encryption (default: false)
-
-### Security Notes
+## Security Notes
 - Default password hash corresponds to "secret123"
 - Generate secure JWT secrets: `python -c "import secrets; print(secrets.token_hex(32))"`
 - Generate password hashes: `python -c "import hashlib; print(hashlib.sha256('password'.encode()).hexdigest())"`
@@ -260,5 +246,3 @@ frontend/src/
 - Production-ready JWT token management
 - Comprehensive error handling and logging
 
-### Next Phase: End-to-End Encryption (Phase 4)
-Ready to implement AES-256-GCM encryption for zero-knowledge architecture where the server never sees plaintext messages.
