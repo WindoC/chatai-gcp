@@ -116,7 +116,7 @@ Revoke refresh token (logout).
 
 ## 2. Chat Endpoints
 
-### POST /chat
+### POST /api/chat/
 Start a new conversation with streaming response.
 
 **Headers:** 
@@ -129,7 +129,6 @@ Start a new conversation with streaming response.
   "message": "string",
   "enable_search": false,  // Enable Google Search grounding
   "model": "gemini-2.5-flash",  // Selected Gemini model (optional, defaults to gemini-2.5-flash)
-  "encrypted": false  // Phase 4: true if message is encrypted
 }
 ```
 
@@ -139,23 +138,22 @@ Content-Type: text/event-stream
 Cache-Control: no-cache
 Connection: keep-alive
 
-data: {"type": "conversation_id", "conversation_id": "uuid"}
+data: {"type": "conversation_start"}
 
 data: {"type": "chunk", "content": "Hello"}
 
 data: {"type": "chunk", "content": " there!"}
 
-data: {"type": "done", "conversation_id": "uuid"}
+data: {"type": "done", "conversation_id": "uuid", "references": [...], "grounded": true}
 ```
 
 **Error Responses:**
 - `400`: Missing or invalid message
 - `401`: Unauthorized
-- `501`: Encryption required but not provided (Phase 4)
 
 ---
 
-### POST /chat/{conversation_id}
+### POST /api/chat/{conversation_id}
 Continue an existing conversation with streaming response.
 
 **Headers:** 
@@ -168,7 +166,6 @@ Continue an existing conversation with streaming response.
   "message": "string",
   "enable_search": false,  // Enable Google Search grounding
   "model": "gemini-2.5-flash",  // Selected Gemini model (optional)
-  "encrypted": false  // Phase 4
 }
 ```
 
@@ -177,7 +174,6 @@ Continue an existing conversation with streaming response.
 **Error Responses:**
 - `404`: Conversation not found
 - `400`: Invalid message format
-- `501`: Encryption required but not provided (Phase 4)
 
 ## 3. Models Endpoint
 
@@ -221,7 +217,7 @@ Get list of available Gemini models that support generateContent.
 
 ## 4. Conversation Management
 
-### GET /conversations
+### GET /api/conversations/
 List all conversations for the user.
 
 **Headers:** `Authorization: Bearer <access_token>`
@@ -234,28 +230,25 @@ List all conversations for the user.
 **Response (200):**
 ```json
 {
-  "success": true,
-  "data": {
-    "conversations": [
-      {
-        "conversation_id": "uuid",
-        "title": "Auto-generated title from first message",
-        "created_at": "2024-01-15T10:30:00Z",
-        "last_updated": "2024-01-15T11:45:00Z",
-        "starred": false,
-        "message_count": 6,
-        "preview": "Last message preview..."
-      }
-    ],
-    "total": 42,
-    "has_more": true
-  }
+  "conversations": [
+    {
+      "conversation_id": "uuid",
+      "title": "Auto-generated title from first message",
+      "created_at": "2024-01-15T10:30:00Z",
+      "last_updated": "2024-01-15T11:45:00Z",
+      "starred": false,
+      "message_count": 6,
+      "preview": "Last message preview..."
+    }
+  ],
+  "total": 42,
+  "has_more": true
 }
 ```
 
 ---
 
-### GET /conversations/{conversation_id}
+### GET /api/conversations/{conversation_id}
 Get full conversation with all messages.
 
 **Headers:** `Authorization: Bearer <access_token>`
@@ -263,28 +256,27 @@ Get full conversation with all messages.
 **Response (200):**
 ```json
 {
-  "success": true,
-  "data": {
-    "conversation_id": "uuid",
-    "title": "Conversation title",
-    "created_at": "2024-01-15T10:30:00Z",
-    "last_updated": "2024-01-15T11:45:00Z",
-    "starred": false,
-    "messages": [
-      {
-        "message_id": "uuid",
-        "role": "user",
-        "content": "Hello, how are you?",
-        "created_at": "2024-01-15T10:30:00Z"
-      },
-      {
-        "message_id": "uuid",
-        "role": "ai",
-        "content": "I'm doing well, thank you!",
-        "created_at": "2024-01-15T10:30:05Z"
-      }
-    ]
-  }
+  "conversation_id": "uuid",
+  "title": "Conversation title",
+  "created_at": "2024-01-15T10:30:00Z",
+  "last_updated": "2024-01-15T11:45:00Z",
+  "starred": false,
+  "messages": [
+    {
+      "message_id": "uuid",
+      "role": "user",
+      "content": "Hello, how are you?",
+      "created_at": "2024-01-15T10:30:00Z"
+    },
+    {
+      "message_id": "uuid",
+      "role": "ai",
+      "content": "I'm doing well, thank you!",
+      "created_at": "2024-01-15T10:30:05Z",
+      "references": [...],
+      "grounded": true
+    }
+  ]
 }
 ```
 
@@ -293,7 +285,7 @@ Get full conversation with all messages.
 
 ---
 
-### POST /conversations/{conversation_id}/star
+### POST /api/conversations/{conversation_id}/star
 Toggle star status of a conversation.
 
 **Headers:** `Authorization: Bearer <access_token>`
@@ -318,7 +310,7 @@ Toggle star status of a conversation.
 
 ---
 
-### PUT /conversations/{conversation_id}/title
+### PATCH /api/conversations/{conversation_id}/title
 Update conversation title.
 
 **Headers:** `Authorization: Bearer <access_token>`
@@ -343,7 +335,7 @@ Update conversation title.
 
 ---
 
-### DELETE /conversations/{conversation_id}
+### DELETE /api/conversations/{conversation_id}
 Delete a specific conversation.
 
 **Headers:** `Authorization: Bearer <access_token>`
@@ -358,7 +350,7 @@ Delete a specific conversation.
 
 ---
 
-### DELETE /conversations/nonstarred
+### DELETE /api/conversations/nonstarred
 Bulk delete all non-starred conversations.
 
 **Headers:** `Authorization: Bearer <access_token>`
@@ -390,7 +382,7 @@ Health check endpoint (no authentication required).
 
 ---
 
-### GET /me
+### GET /auth/me
 Get current user information.
 
 **Headers:** `Authorization: Bearer <access_token>`
@@ -403,30 +395,6 @@ Get current user information.
     "username": "admin",
     "login_time": "2024-01-15T10:00:00Z",
     "token_expires": "2024-01-15T10:30:00Z"
-  }
-}
-```
-
-## 6. Phase 4: Encryption Endpoints
-
-### POST /encryption/validate
-Validate AES key hash (Phase 4 only).
-
-**Headers:** `Authorization: Bearer <access_token>`
-
-**Request Body:**
-```json
-{
-  "key_hash": "sha256_hash_of_aes_key"
-}
-```
-
-**Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "valid": true
   }
 }
 ```
@@ -445,8 +413,6 @@ Validate AES key hash (Phase 4 only).
 - `CHAT_MESSAGE_TOO_LONG`: Message exceeds maximum length
 - `CHAT_API_ERROR`: Error calling Gemini API
 - `CHAT_STREAM_ERROR`: Error during streaming response
-- `CHAT_ENCRYPTION_REQUIRED`: Encryption enabled but message not encrypted
-- `CHAT_DECRYPTION_FAILED`: Failed to decrypt message
 
 ### Conversation Errors
 - `CONV_NOT_FOUND`: Conversation does not exist
