@@ -24,9 +24,6 @@ class Settings(BaseSettings):
     username: Optional[str] = None
     password_hash: Optional[str] = None
     
-    # Encryption configuration (for Phase 4)
-    aes_key_hash: Optional[str] = None
-    encryption_enabled: bool = False
     
     # Rate limiting
     auth_rate_limit: int = 10  # requests per minute

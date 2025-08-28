@@ -46,7 +46,6 @@ class ChatRequest(BaseModel):
     enable_search: bool = False  # Google Search grounding
     url_context: Optional[List[str]] = None  # URL context for enhanced responses
     model: str = "gemini-2.5-flash"  # Selected Gemini model
-    encrypted: bool = False  # Phase 4 feature
 
 
 class StarRequest(BaseModel):

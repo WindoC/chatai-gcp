@@ -105,9 +105,6 @@ env_variables:
   AUTH_RATE_LIMIT: "10"
   CHAT_RATE_LIMIT: "30"
   
-  # Phase 4 Encryption (Optional)
-  AES_KEY_HASH: "YOUR_AES_KEY_HASH_FOR_PHASE_4"
-  ENCRYPTION_ENABLED: "false"
 
 handlers:
   # Serve the React build files

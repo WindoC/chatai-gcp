@@ -94,9 +94,6 @@ PASSWORD_HASH=ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f  
 AUTH_RATE_LIMIT=10
 CHAT_RATE_LIMIT=30
 
-# Phase 4 settings (not needed for Phase 3)
-AES_KEY_HASH=example_hash
-ENCRYPTION_ENABLED=false
 ```
 
 ### 1.3 Setup Google Cloud Authentication
