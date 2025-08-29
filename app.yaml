@@ -25,6 +25,9 @@ env_variables:
   AUTH_RATE_LIMIT: "10"
   CHAT_RATE_LIMIT: "30"
 
+  # Phase 4 Encryption - Set this in GCP Console
+  AES_KEY_HASH: "your_aes_key_hash"
+
 handlers:
   # Serve the React build files
   - url: /static
