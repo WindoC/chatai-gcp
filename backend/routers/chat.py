@@ -8,18 +8,20 @@ from models import ChatRequest, Message, MessageRole
 from services import gemini_service, firestore_service
 from middleware.auth_middleware import get_current_user
 from services.auth_service import TokenData
+from services.encryption_service import EncryptionService
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
 
-async def create_sse_stream(message: str, conversation_id: str = None, enable_search: bool = False, model: str = "gemini-2.5-flash") -> AsyncGenerator[str, None]:
+async def create_sse_stream(message: str, encryption_key: str, conversation_id: str = None, enable_search: bool = False, model: str = "gemini-2.5-flash") -> AsyncGenerator[str, None]:
     """
     Create Server-Sent Events stream for chat response
     
     Args:
         message: User message
+        encryption_key: Key for encrypting response data
         conversation_id: Optional existing conversation ID
         enable_search: Enable Google Search grounding
         model: Gemini model to use
@@ -104,7 +106,10 @@ async def create_sse_stream(message: str, conversation_id: str = None, enable_se
                 'url_context_urls': url_context_urls,
                 'grounded': grounded
             })
-        yield f"data: {json.dumps(final_data)}\n\n"
+        
+        # Encrypt final event data
+        encrypted_final_data = EncryptionService.encrypt_response(final_data, encryption_key)
+        yield f"data: {json.dumps({'type': 'encrypted_done', 'encrypted_data': encrypted_final_data['encrypted_data']})}\n\n"
         
     except Exception as e:
         logger.error(f"Error in SSE stream: {e}")
@@ -114,7 +119,6 @@ async def create_sse_stream(message: str, conversation_id: str = None, enable_se
 
 @router.post("/")
 async def start_chat(
-    chat_request: ChatRequest, 
     request: Request,
     current_user: TokenData = Depends(get_current_user)
 ):
@@ -122,18 +126,24 @@ async def start_chat(
     Start a new chat conversation with streaming response
     
     Args:
-        chat_request: Chat request containing the user message
-        request: FastAPI request object
+        request: FastAPI request object with decrypted data
         current_user: Current authenticated user
         
     Returns:
         StreamingResponse: Server-Sent Events stream
     """
     try:
+        # Get decrypted data from middleware
+        if not hasattr(request.state, 'decrypted_data'):
+            raise HTTPException(status_code=400, detail="Encrypted payload required")
+        
+        decrypted_data = request.state.decrypted_data
+        chat_request = ChatRequest(**decrypted_data)
+        
         logger.info(f"Starting new chat with message: {chat_request.message[:100]}...")
         
         return StreamingResponse(
-            create_sse_stream(chat_request.message, enable_search=chat_request.enable_search, model=chat_request.model),
+            create_sse_stream(chat_request.message, request.state.encryption_key, enable_search=chat_request.enable_search, model=chat_request.model),
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",
@@ -151,8 +161,7 @@ async def start_chat(
 
 @router.post("/{conversation_id}")
 async def continue_chat(
-    conversation_id: str, 
-    chat_request: ChatRequest, 
+    conversation_id: str,
     request: Request,
     current_user: TokenData = Depends(get_current_user)
 ):
@@ -161,14 +170,20 @@ async def continue_chat(
     
     Args:
         conversation_id: ID of the existing conversation
-        chat_request: Chat request containing the user message
-        request: FastAPI request object
+        request: FastAPI request object with decrypted data
         current_user: Current authenticated user
         
     Returns:
         StreamingResponse: Server-Sent Events stream
     """
     try:
+        # Get decrypted data from middleware
+        if not hasattr(request.state, 'decrypted_data'):
+            raise HTTPException(status_code=400, detail="Encrypted payload required")
+        
+        decrypted_data = request.state.decrypted_data
+        chat_request = ChatRequest(**decrypted_data)
+        
         logger.info(f"Continuing chat {conversation_id} with message: {chat_request.message[:100]}...")
         
         # Verify conversation exists
@@ -177,7 +192,7 @@ async def continue_chat(
             raise HTTPException(status_code=404, detail="Conversation not found")
         
         return StreamingResponse(
-            create_sse_stream(chat_request.message, conversation_id, chat_request.enable_search, chat_request.model),
+            create_sse_stream(chat_request.message, request.state.encryption_key, conversation_id, chat_request.enable_search, chat_request.model),
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",
