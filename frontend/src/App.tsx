@@ -372,7 +372,7 @@ function ChatInterface() {
           if (msg.role === 'ai' && msg.references && msg.references.length > 0) {
             messageContent += '\n\n**References:**\n';
             msg.references.forEach(ref => {
-              messageContent += `[${ref.id}] ${ref.title}\n    ${ref.url}\n`;
+              messageContent += `${ref.id}. [${ref.title}](${ref.url})\n`;
             });
           }
           

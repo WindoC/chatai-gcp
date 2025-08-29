@@ -25,7 +25,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isStreaming =
       if (!isUser && message.references && message.references.length > 0) {
         markdownContent += '\n\n**References:**\n';
         message.references.forEach(ref => {
-          markdownContent += `[${ref.id}] ${ref.title}\n    ${ref.url}\n`;
+          markdownContent += `${ref.id}. [${ref.title}](${ref.url})\n`;
         });
       }
       
