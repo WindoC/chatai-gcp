@@ -120,7 +120,7 @@ export function ModelSelector({ selectedModel, onModelChange }: ModelSelectorPro
       </button>
 
       {isOpen && !loading && (
-        <div className="absolute top-full left-0 mt-1 w-80 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
+        <div className="absolute top-full left-0 mt-1 w-80 max-w-[90vw] bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
           {/* Refresh button */}
           <div className="p-2 border-b border-gray-200 dark:border-gray-600">
             <button

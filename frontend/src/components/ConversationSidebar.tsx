@@ -51,7 +51,13 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
           : ''
         }
       `}
-      onClick={() => onSelectConversation(conversation.conversation_id)}
+      onClick={() => {
+        onSelectConversation(conversation.conversation_id);
+        // Close mobile menu when selecting a conversation
+        if (window.innerWidth < 768) {
+          setIsOpen(false);
+        }
+      }}
     >
       <div className="flex-1 min-w-0">
         <h4 className="text-gray-900 dark:text-gray-100 text-sm font-medium truncate">
@@ -111,7 +117,7 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
       {/* Mobile menu button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="md:hidden fixed top-4 left-4 z-50 p-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg shadow-soft"
+        className={`md:hidden fixed top-4 left-4 z-[60] p-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg shadow-soft hover:bg-gray-50 dark:hover:bg-gray-700 transition-all ${isOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
       >
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -120,7 +126,7 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
 
       {/* Sidebar */}
       <div className={`
-        fixed md:relative inset-y-0 left-0 z-40 w-80 
+        fixed md:relative inset-y-0 left-0 z-[55] w-[85vw] max-w-sm md:w-80
         bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700
         transform transition-transform duration-300 ease-in-out
         ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
@@ -128,8 +134,25 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
         <div className="flex flex-col h-full">
           {/* Header */}
           <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+            {/* Close button for mobile */}
+            <div className="md:hidden flex justify-end mb-4">
+              <button
+                onClick={() => setIsOpen(false)}
+                className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
             <button
-              onClick={onNewChat}
+              onClick={() => {
+                onNewChat();
+                // Close mobile menu when starting new chat
+                if (window.innerWidth < 768) {
+                  setIsOpen(false);
+                }
+              }}
               className="w-full px-4 py-3 bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white rounded-xl font-medium transition-all duration-200 shadow-soft hover:shadow-soft-lg"
             >
               <span className="flex items-center justify-center space-x-2">
@@ -181,7 +204,7 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
           </div>
 
           {/* Footer */}
-          <div className="p-6 border-t border-gray-200 dark:border-gray-700">
+          <div className="p-4 md:p-6 border-t border-gray-200 dark:border-gray-700">
             <button
               onClick={() => setShowBulkDeleteConfirm(true)}
               className="w-full px-4 py-4 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors min-h-[56px] flex items-center justify-center"
@@ -201,7 +224,7 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
       {/* Overlay for mobile */}
       {isOpen && (
         <div
-          className="md:hidden fixed inset-0 bg-black bg-opacity-50 z-30"
+          className="md:hidden fixed inset-0 bg-black bg-opacity-50 z-50"
           onClick={() => setIsOpen(false)}
         />
       )}

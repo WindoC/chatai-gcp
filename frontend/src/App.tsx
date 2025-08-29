@@ -427,28 +427,30 @@ function ChatInterface() {
       {/* Main chat area */}
       <div className="flex-1 flex flex-col md:ml-0">
         {/* Header */}
-        <header className="relative z-50 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 px-6 md:px-6 py-4 transition-colors duration-200">
-          <div className="flex items-center justify-between">
-            {/* Left section: Model selector */}
-            <div className="flex items-center">
+        <header className="relative z-30 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 px-4 md:px-6 py-3 md:py-4 transition-colors duration-200">
+          <div className="flex items-center justify-between min-h-[56px]">
+            {/* Left section: Model selector - hidden on very small screens */}
+            <div className="hidden sm:flex items-center pl-12 md:pl-0">
               <ModelSelector selectedModel={selectedModel} onModelChange={handleModelChange} />
             </div>
-            <div className="md:hidden w-10"></div> {/* Spacer for mobile hamburger menu */}
             
-            <div className="flex-1 flex justify-center">
+            {/* Center: Title - takes more space on mobile */}
+            <div className="flex-1 flex justify-center px-12 sm:px-4">
               <EditableTitle
                 title={currentConversationTitle}
                 onSave={(newTitle) => currentConversation && renameConversation(currentConversation, newTitle)}
                 placeholder={currentConversation ? "Untitled Conversation" : "New Chat"}
-                className="text-lg font-medium text-gray-900 dark:text-gray-100"
+                className="text-base md:text-lg font-medium text-gray-900 dark:text-gray-100 text-center truncate max-w-[200px] sm:max-w-none"
                 disabled={!currentConversation || isStreaming}
               />
             </div>
-            <div className="flex items-center space-x-4">
+            {/* Right section: Action buttons - simplified on mobile */}
+            <div className="flex items-center space-x-2 sm:space-x-4">
+              {/* Copy button - hidden on small screens */}
               {messages.length > 0 && (
                 <button
                   onClick={copyFullConversation}
-                  className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  className="hidden sm:flex p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                   title="Copy full conversation"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -456,16 +458,18 @@ function ChatInterface() {
                   </svg>
                 </button>
               )}
+              
+              {/* Encryption button - smaller on mobile */}
               <button
                 onClick={() => {
                   setKeyModalMessage('Update your encryption key:');
                   setShowKeyModal(true);
                 }}
-                className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                className="p-1.5 sm:p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                 title={EncryptionService.isAvailable() || keyChangeCounter >= 0 ? 'Update encryption key' : 'Setup encryption key'}
               >
                 <div className="relative">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                   </svg>
                   {(!EncryptionService.isAvailable() || keyChangeCounter < 0) && (
@@ -473,13 +477,19 @@ function ChatInterface() {
                   )}
                 </div>
               </button>
-              <ThemeToggle />
+              
+              {/* Theme toggle - smaller on mobile */}
+              <div className="scale-90 sm:scale-100">
+                <ThemeToggle />
+              </div>
+              
+              {/* Logout button - smaller on mobile */}
               <button
                 onClick={logout}
-                className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                className="p-1.5 sm:p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                 title="Logout"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                 </svg>
               </button>
@@ -488,47 +498,47 @@ function ChatInterface() {
         </header>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-6 py-4">
-          <div className="max-w-4xl mx-auto space-y-6">
+        <div className="flex-1 overflow-y-auto px-4 md:px-6 py-3 md:py-4">
+          <div className="max-w-4xl mx-auto space-y-4 md:space-y-6 w-full">
             {messages.length === 0 && !streamingMessage && (
-              <div className="text-center text-gray-600 dark:text-gray-400 mt-20">
-                <div className="mb-8">
-                  <div className="w-16 h-16 mx-auto mb-6 bg-gradient-to-r from-primary-400 to-primary-600 rounded-2xl flex items-center justify-center shadow-soft">
-                    <span className="text-2xl text-white">🤖</span>
+              <div className="text-center text-gray-600 dark:text-gray-400 mt-8 md:mt-20">
+                <div className="mb-6 md:mb-8">
+                  <div className="w-12 h-12 md:w-16 md:h-16 mx-auto mb-4 md:mb-6 bg-gradient-to-r from-primary-400 to-primary-600 rounded-2xl flex items-center justify-center shadow-soft">
+                    <span className="text-xl md:text-2xl text-white">🤖</span>
                   </div>
-                  <h2 className="text-3xl font-bold mb-4 text-gray-900 dark:text-gray-100">
+                  <h2 className="text-2xl md:text-3xl font-bold mb-3 md:mb-4 text-gray-900 dark:text-gray-100">
                     Welcome to Chat-AI
                   </h2>
-                  <p className="text-lg max-w-md mx-auto">
+                  <p className="text-base md:text-lg max-w-md mx-auto px-4">
                     Start a conversation with our AI assistant powered by Google Gemini.
                   </p>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto mt-12">
-                  <div className="p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-soft">
-                    <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">💡 Ask Questions</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 max-w-sm md:max-w-2xl mx-auto mt-6 md:mt-12 px-4 md:px-0">
+                  <div className="p-3 md:p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-soft">
+                    <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-1.5 md:mb-2">💡 Ask Questions</h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
                       Get answers to your questions on any topic
                     </p>
                   </div>
-                  <div className="p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-soft">
-                    <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">✨ Generate Content</h3>
+                  <div className="p-3 md:p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-soft">
+                    <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-1.5 md:mb-2">✨ Generate Content</h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
                       Create stories, code, emails, and more
                     </p>
                   </div>
-                  <div className="p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-soft">
-                    <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">🔍 Analyze Data</h3>
+                  <div className="p-3 md:p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-soft">
+                    <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-1.5 md:mb-2">🔍 Analyze Data</h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
                       Get insights and explanations about complex topics
                     </p>
                   </div>
-                  <div className="p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-soft">
-                    <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">🎯 Solve Problems</h3>
+                  <div className="p-3 md:p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-soft">
+                    <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-1.5 md:mb-2">🎯 Solve Problems</h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
                       Get step-by-step solutions and guidance
                     </p>
                   </div>
-                  <div className="p-4 bg-blue-50 dark:bg-blue-950 rounded-xl border border-blue-200 dark:border-blue-800 shadow-soft col-span-full">
+                  <div className="p-3 md:p-4 bg-blue-50 dark:bg-blue-950 rounded-xl border border-blue-200 dark:border-blue-800 shadow-soft col-span-full">
                     <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-2 flex items-center">
                       <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -536,7 +546,7 @@ function ChatInterface() {
                       🌐 NEW: Web Search Grounding
                     </h3>
                     <p className="text-sm text-blue-700 dark:text-blue-300">
-                      Enable the "Search the web for current information" checkbox to get answers grounded with real-time web search results and source citations.
+                      Enable the search toggle to get answers grounded with real-time web search results and citations.
                     </p>
                   </div>
                 </div>
