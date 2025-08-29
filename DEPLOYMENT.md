@@ -77,12 +77,21 @@ curl -H "Content-Type: application/json" \
 ### 3.1 Configure Frontend Environment Variables
 **CRITICAL**: Update the frontend environment variables for production deployment.
 
-Edit `frontend/.env.local`:
-```env
-REACT_APP_API_URL=https://YOUR_PROJECT_ID.uw.r.appspot.com
+Create or update `frontend/.env.local` with proper encoding:
+```bash
+# Navigate to frontend directory
+cd frontend
+
+# Create .env.local file (overwrite if exists)
+echo "REACT_APP_API_URL=https://YOUR_PROJECT_ID.uw.r.appspot.com" > .env.local
+
+# Verify the file was created correctly
+cat .env.local
 ```
 
 Replace `YOUR_PROJECT_ID` with your actual Google Cloud project ID (e.g., `https://chat-470206.uw.r.appspot.com`).
+
+**Important**: Don't manually edit the file in some editors as they may introduce Unicode encoding issues.
 
 **Why this is important:**
 - React environment variables are built-in at compile time
@@ -476,24 +485,31 @@ gcloud app deploy --promote --stop-previous-version
 **Frontend API URL Issues:**
 ```bash
 # Problem: Frontend calls localhost instead of App Engine URL
-# Solution: Check and rebuild frontend
+# Common causes: Missing/corrupt .env.local or encoding issues
 
 # 1. Check current frontend environment
 cat frontend/.env.local
 # Should show: REACT_APP_API_URL=https://YOUR_PROJECT_ID.uw.r.appspot.com
 
-# 2. If wrong, update it:
-echo "REACT_APP_API_URL=https://YOUR_PROJECT_ID.uw.r.appspot.com" > frontend/.env.local
-
-# 3. Rebuild frontend with correct URL
+# 2. If file shows weird characters or is missing, recreate it:
 cd frontend
+echo "REACT_APP_API_URL=https://YOUR_PROJECT_ID.uw.r.appspot.com" > .env.local
+
+# 3. Verify environment variable is read during build:
+npm run build 2>&1 | grep -i "react_app" || echo "Environment variable not detected"
+
+# 4. Check the built files contain correct URL:
+grep -r "chat-470206" build/ || echo "WARNING: Build still contains localhost URLs"
+
+# 5. If still using localhost, try these steps:
+rm -rf node_modules package-lock.json
+npm install
 npm run build
-cd ..
 
-# 4. Redeploy
-gcloud app deploy
+# 6. Redeploy
+cd .. && gcloud app deploy
 
-# 5. Verify in browser console - should not see localhost:8000 requests
+# 7. Verify in browser console - should not see localhost:8000 requests
 ```
 
 **Authentication Issues:**
