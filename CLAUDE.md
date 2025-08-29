@@ -86,6 +86,13 @@ This project follows a 4-phase development approach:
 - Enhanced UI with search toggle and reference display
 - Dynamic Gemini model selection with intelligent caching
 
+### Phase 4: End-to-End Encryption ✅
+- AES-256-GCM encryption for sensitive endpoints
+- Encrypted request/response for chat and conversation endpoints
+- Encryption key validation against environment hash
+- SSE streaming with encrypted final metadata
+- No fallback to unencrypted traffic for protected endpoints
+
 
 ## Development Commands
 
@@ -139,11 +146,13 @@ This project follows a 4-phase development approach:
 - `PASSWORD_HASH` - SHA256 hash of user password
 - `AUTH_RATE_LIMIT` - Authentication rate limit per minute (default: 10)
 - `CHAT_RATE_LIMIT` - Chat API rate limit per minute (default: 30)
+- `AES_KEY_HASH` - Server secret for AES key derivation (never transmitted)
 
 ## Security Notes
 - Default password hash corresponds to "secret123"
 - Generate secure JWT secrets: `python -c "import secrets; print(secrets.token_hex(32))"`
 - Generate password hashes: `python -c "import hashlib; print(hashlib.sha256('password'.encode()).hexdigest())"`
+- Generate AES server secrets: `python -c "import secrets; print(secrets.token_hex(32))"`
 
 ## Current Implementation Status (Phase 3 Complete with AI Grounding)
 
@@ -169,6 +178,16 @@ This project follows a 4-phase development approach:
 - **Data Models**: Extended with `Reference`, `GroundingSupport` models for metadata
 - **SSE Integration**: Real-time streaming includes grounding metadata in final event
 
+### End-to-End Encryption Implementation Details
+- **Algorithm**: AES-256-GCM with server-side key management
+- **Key Source**: Pure server-side secret from `AES_KEY_HASH` environment variable
+- **Key Security**: No JWT tokens or client data involved in encryption
+- **Payload Structure**: `{"encrypted_data": "base64(nonce + ciphertext)"}`
+- **Protected Endpoints**: Chat and conversation APIs only
+- **SSE Handling**: Regular chunks unencrypted, final metadata encrypted
+- **Error Handling**: Comprehensive encryption-specific error codes
+- **Security**: No fallback to unencrypted channels, pure server-side encryption
+
 ### Backend Architecture
 ```
 backend/
@@ -178,10 +197,12 @@ backend/
 ├── services/
 │   ├── auth_service.py               # JWT token management and user auth
 │   ├── firestore_service.py          # Database operations
-│   └── gemini_service.py             # AI chat integration
+│   ├── gemini_service.py             # AI chat integration
+│   └── encryption_service.py         # AES-GCM encryption operations
 ├── middleware/
 │   ├── auth_middleware.py            # JWT authentication dependency
-│   └── security_middleware.py        # Rate limiting and security headers
+│   ├── security_middleware.py        # Rate limiting and security headers
+│   └── encryption_middleware.py      # AES-GCM encryption for protected endpoints
 ├── routers/
 │   ├── auth.py                       # Authentication endpoints (/auth/*)
 │   ├── chat.py                       # Chat endpoints with auth protection
@@ -228,6 +249,7 @@ frontend/src/
 - **📋 Enhanced Copy**: Full conversation copy including references and metadata
 - **🎯 Inline Citations**: Automatic citation insertion in AI responses
 - **📚 Reference Display**: Clickable source references with proper attribution
+- **🔒 End-to-End Encryption**: AES-256-GCM encryption for chat and conversation endpoints
 
 ### Default Credentials (Development)
 - **Username**: `admin`
