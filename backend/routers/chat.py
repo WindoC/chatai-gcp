@@ -45,21 +45,30 @@ async def create_sse_stream(message: str, encryption_key: str, conversation_id: 
         if not conversation_id:
             yield f"data: {json.dumps({'type': 'conversation_start'})}\n\n"
         
-        # Always use grounding method to support URL auto-detection and search
-        # URL context is auto-detected from message content in gemini_service
-        complete_response, references, search_queries, grounding_supports, url_context_urls, grounded = await gemini_service.generate_response_with_grounding(
-            message, conversation_history, enable_search, None, model
-        )
+        # Initialize variables for grounding
+        references = []
+        search_queries = []
+        grounding_supports = []
+        url_context_urls = []
+        grounded = False
         
-        # Stream the complete response in chunks for consistency (encrypted)
-        chunk_size = 50  # Characters per chunk
-        for i in range(0, len(complete_response), chunk_size):
-            chunk = complete_response[i:i + chunk_size]
-            # Encrypt chunk content
-            encrypted_chunk = EncryptionService.encrypt_response({'content': chunk}, encryption_key)
+        if enable_search:
+            # Use non-streaming grounding method for search requests to get metadata
+            complete_response, references, search_queries, grounding_supports, url_context_urls, grounded = await gemini_service.generate_response_with_grounding(
+                message, conversation_history, enable_search, None, model
+            )
+            
+            encrypted_chunk = EncryptionService.encrypt_response({'content': complete_response}, encryption_key)
             yield f"data: {json.dumps({'type': 'encrypted_chunk', 'encrypted_data': encrypted_chunk['encrypted_data']})}\n\n"
-            # Small delay to simulate streaming
-            await asyncio.sleep(0.05)
+
+        else:
+            # Use real streaming for normal requests (no search/grounding needed)
+            complete_response = ""
+            async for chunk in gemini_service.generate_response_stream(message, conversation_history, enable_search, model):
+                complete_response += chunk
+                # Encrypt and stream each chunk in real-time
+                encrypted_chunk = EncryptionService.encrypt_response({'content': chunk}, encryption_key)
+                yield f"data: {json.dumps({'type': 'encrypted_chunk', 'encrypted_data': encrypted_chunk['encrypted_data']})}\n\n"
         
         # Save conversation to Firestore
         if conversation_id:
