@@ -98,9 +98,44 @@
   color: theme(colors.gray.900);
 }
 
-/* Hide mobile menu button when sidebar is open */
+/* Mobile optimizations */
 @media (max-width: 768px) {
   .sidebar-open .mobile-menu-button {
     display: none;
   }
+  
+  /* Prevent horizontal scrolling on mobile */
+  body {
+    overflow-x: hidden;
+  }
+  
+  /* Improve touch targets on mobile */
+  button {
+    min-height: 44px;
+  }
+  
+  /* Better text sizing on mobile */
+  html {
+    font-size: 16px;
+  }
+  
+  /* Ensure proper viewport handling */
+  * {
+    box-sizing: border-box;
+  }
+  
+  /* Better mobile card spacing */
+  .grid {
+    width: 100%;
+  }
+  
+  /* Ensure mobile sidebar doesn't exceed viewport */
+  .fixed.inset-y-0 {
+    max-width: 85vw;
+  }
+}
+
+/* Improve scrolling performance */
+.overflow-y-auto {
+  -webkit-overflow-scrolling: touch;
 }
