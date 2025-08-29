@@ -8,6 +8,7 @@ import { ModelSelector } from './components/ModelSelector';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { apiService } from './services/api';
+import EncryptionService from './services/encryptionService';
 import { Message, ConversationSummary, SSEEvent } from './types';
 
 function ChatInterface() {
@@ -102,7 +103,7 @@ function ChatInterface() {
 
       let aiMessageContent = '';
 
-      eventSource.onmessage = (event) => {
+      eventSource.onmessage = async (event) => {
         try {
           const data: SSEEvent = JSON.parse(event.data);
 
@@ -115,6 +116,20 @@ function ChatInterface() {
               if (data.content) {
                 aiMessageContent += data.content;
                 setStreamingMessage(aiMessageContent);
+              }
+              break;
+
+            case 'encrypted_chunk':
+              if (data.encrypted_data && EncryptionService.isAvailable()) {
+                try {
+                  const decryptedChunk = await EncryptionService.decryptData(data.encrypted_data);
+                  if (decryptedChunk.content) {
+                    aiMessageContent += decryptedChunk.content;
+                    setStreamingMessage(aiMessageContent);
+                  }
+                } catch (error) {
+                  console.error('Failed to decrypt chunk:', error);
+                }
               }
               break;
 
@@ -155,6 +170,56 @@ function ChatInterface() {
 
               // Reload conversations to update sidebar
               loadConversations();
+              break;
+
+            case 'encrypted_done':
+              if (data.encrypted_data && EncryptionService.isAvailable()) {
+                try {
+                  const decryptedData = await EncryptionService.decryptData(data.encrypted_data);
+                  
+                  if (decryptedData.conversation_id) {
+                    const conversationId = decryptedData.conversation_id;
+                    setCurrentConversation(conversationId);
+                    // Load the conversation to get the generated title
+                    setTimeout(async () => {
+                      try {
+                        const conversation = await apiService.getConversation(conversationId);
+                        setCurrentConversationTitle(conversation.title || null);
+                      } catch (error) {
+                        console.error('Failed to load conversation title:', error);
+                      }
+                    }, 100);
+                  }
+
+                  // Add final AI message with grounding data
+                  const aiMessage: Message = {
+                    role: 'ai',
+                    content: aiMessageContent,
+                    references: decryptedData.references,
+                    search_queries: decryptedData.search_queries,
+                    grounding_supports: decryptedData.grounding_supports,
+                    url_context_urls: decryptedData.url_context_urls,
+                    grounded: decryptedData.grounded || false,
+                    created_at: new Date().toISOString(),
+                  };
+
+                  setMessages(prev => [...prev, aiMessage]);
+                  setStreamingMessage('');
+                  setIsStreaming(false);
+                  eventSource.close();
+
+                  // Focus input after AI response completes
+                  setShouldFocusInput(true);
+
+                  // Reload conversations to update sidebar
+                  loadConversations();
+                } catch (error) {
+                  console.error('Failed to decrypt final data:', error);
+                  setIsStreaming(false);
+                  setStreamingMessage('');
+                  eventSource.close();
+                }
+              }
               break;
 
             case 'error':
