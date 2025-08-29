@@ -8,7 +8,9 @@
       "Bash(git commit:*)",
       "Bash(del \"C:\\temp\\chatai-gcp\\frontend\\src\\components\\GroundedText.tsx\")",
       "Bash(git log:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run build:*)"
     ],
     "deny": [],
     "ask": []
