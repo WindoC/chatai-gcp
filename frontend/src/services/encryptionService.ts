@@ -151,7 +151,7 @@ class EncryptionService {
    * Decrypt AES-GCM encrypted data
    * Returns decrypted data as object
    */
-  static async decryptData(encryptedData: string): Promise<any> {
+  static async decryptData(encryptedData: string, autoHandleFailure: boolean = true): Promise<any> {
     try {
       // Get encryption key
       const keyHex = this.getEncryptionKey();
@@ -190,6 +190,12 @@ class EncryptionService {
       return JSON.parse(decryptedText);
     } catch (error) {
       console.error('Decryption failed:', error);
+      
+      // Auto-handle decryption failure by removing invalid key
+      if (autoHandleFailure) {
+        this.handleDecryptionFailure();
+      }
+      
       throw new Error(`Decryption failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -222,6 +228,62 @@ class EncryptionService {
     } catch {
       return false;
     }
+  }
+
+  /**
+   * Set up encryption key from user input
+   */
+  static async setupEncryptionKey(userKey: string): Promise<void> {
+    try {
+      // Hash the user key with SHA256
+      const keyBytes = this.stringToBytes(userKey);
+      const keyBuffer = new ArrayBuffer(keyBytes.length);
+      new Uint8Array(keyBuffer).set(keyBytes);
+      const hashedKey = await crypto.subtle.digest('SHA-256', keyBuffer);
+      
+      // Convert to hex string
+      const hashedKeyHex = Array.from(new Uint8Array(hashedKey))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+      
+      // Store in localStorage
+      localStorage.setItem('aes_key_hash', hashedKeyHex);
+    } catch (error) {
+      throw new Error(`Failed to setup encryption key: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Remove encryption key from localStorage
+   */
+  static removeEncryptionKey(): void {
+    localStorage.removeItem('aes_key_hash');
+  }
+
+  /**
+   * Test if the current key can decrypt some test data
+   */
+  static async testDecryption(): Promise<boolean> {
+    try {
+      if (!this.isAvailable()) return false;
+      
+      // Create a test encryption/decryption
+      const testData = { test: 'encryption_test' };
+      const encrypted = await this.encryptData(testData);
+      const decrypted = await this.decryptData(encrypted);
+      
+      return decrypted.test === 'encryption_test';
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Handle decryption failure by removing invalid key
+   */
+  static handleDecryptionFailure(): void {
+    console.warn('Decryption failed, removing invalid encryption key');
+    this.removeEncryptionKey();
   }
 }
 

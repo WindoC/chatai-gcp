@@ -13,6 +13,9 @@
       "Bash(npm run build:*)"
     ],
     "deny": [],
-    "ask": []
+    "ask": [],
+    "additionalDirectories": [
+      "C:\\c\\temp\\chatai-gcp"
+    ]
   }
 }
