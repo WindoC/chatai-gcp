@@ -51,11 +51,13 @@ async def create_sse_stream(message: str, encryption_key: str, conversation_id: 
             message, conversation_history, enable_search, None, model
         )
         
-        # Stream the complete response in chunks for consistency
+        # Stream the complete response in chunks for consistency (encrypted)
         chunk_size = 50  # Characters per chunk
         for i in range(0, len(complete_response), chunk_size):
             chunk = complete_response[i:i + chunk_size]
-            yield f"data: {json.dumps({'type': 'chunk', 'content': chunk})}\n\n"
+            # Encrypt chunk content
+            encrypted_chunk = EncryptionService.encrypt_response({'content': chunk}, encryption_key)
+            yield f"data: {json.dumps({'type': 'encrypted_chunk', 'encrypted_data': encrypted_chunk['encrypted_data']})}\n\n"
             # Small delay to simulate streaming
             await asyncio.sleep(0.05)
         
