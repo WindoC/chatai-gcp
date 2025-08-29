@@ -53,8 +53,9 @@ export interface ChatRequest {
 }
 
 export interface SSEEvent {
-  type: 'conversation_start' | 'chunk' | 'done' | 'error';
+  type: 'conversation_start' | 'chunk' | 'encrypted_chunk' | 'done' | 'encrypted_done' | 'error';
   content?: string;
+  encrypted_data?: string;
   conversation_id?: string;
   references?: Reference[];
   search_queries?: string[];
