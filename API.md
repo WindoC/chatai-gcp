@@ -123,12 +123,21 @@ Start a new conversation with streaming response.
 - `Authorization: Bearer <access_token>`
 - `Accept: text/event-stream` (for SSE)
 
-**Request Body:**
+**Request Body (Encrypted):**
+```json
+{
+  "encrypted_payload": {
+    "encrypted_data": "base64_encoded_encrypted_data"
+  }
+}
+```
+
+**Encrypted Payload Structure:**
 ```json
 {
   "message": "string",
-  "enable_search": false,  // Enable Google Search grounding
-  "model": "gemini-2.5-flash",  // Selected Gemini model (optional, defaults to gemini-2.5-flash)
+  "enable_search": false,
+  "model": "gemini-2.5-flash"
 }
 ```
 
@@ -148,8 +157,8 @@ data: {"type": "done", "conversation_id": "uuid", "references": [...], "grounded
 ```
 
 **Error Responses:**
-- `400`: Missing or invalid message
-- `401`: Unauthorized
+- `400`: Missing encrypted payload or decryption failed
+- `401`: Invalid encryption key or unauthorized
 
 ---
 
@@ -160,20 +169,21 @@ Continue an existing conversation with streaming response.
 - `Authorization: Bearer <access_token>`
 - `Accept: text/event-stream`
 
-**Request Body:**
+**Request Body (Encrypted):**
 ```json
 {
-  "message": "string",
-  "enable_search": false,  // Enable Google Search grounding
-  "model": "gemini-2.5-flash",  // Selected Gemini model (optional)
+  "encrypted_payload": {
+    "encrypted_data": "base64_encoded_encrypted_data"
+  }
 }
 ```
 
-**Response:** Same SSE format as `/chat`
+**Response:** Same SSE format as `/api/chat/`
 
 **Error Responses:**
+- `400`: Missing encrypted payload or decryption failed
+- `401`: Invalid encryption key
 - `404`: Conversation not found
-- `400`: Invalid message format
 
 ## 3. Models Endpoint
 
@@ -215,10 +225,11 @@ Get list of available Gemini models that support generateContent.
 
 ---
 
+
 ## 4. Conversation Management
 
 ### GET /api/conversations/
-List all conversations for the user.
+List all conversations for the user (encrypted response).
 
 **Headers:** `Authorization: Bearer <access_token>`
 
@@ -228,11 +239,17 @@ List all conversations for the user.
 - `starred` (optional): Filter by starred status (true/false)
 
 **Response (200):**
+```
+Content-Type: text/plain
+base64_encoded_encrypted_conversation_list
+```
+
+**Decrypted Response Structure:**
 ```json
 {
   "conversations": [
     {
-      "conversation_id": "uuid",
+      "conversation_id": "uuid", 
       "title": "Auto-generated title from first message",
       "created_at": "2024-01-15T10:30:00Z",
       "last_updated": "2024-01-15T11:45:00Z",
@@ -249,11 +266,20 @@ List all conversations for the user.
 ---
 
 ### GET /api/conversations/{conversation_id}
-Get full conversation with all messages.
+Get full conversation with all messages (encrypted response).
 
 **Headers:** `Authorization: Bearer <access_token>`
 
+**Query Parameters:**
+None required.
+
 **Response (200):**
+```
+Content-Type: text/plain
+base64_encoded_encrypted_conversation
+```
+
+**Decrypted Response Structure:**
 ```json
 {
   "conversation_id": "uuid",
@@ -281,6 +307,8 @@ Get full conversation with all messages.
 ```
 
 **Error Responses:**
+- `400`: Decryption failed (invalid user key)
+- `401`: Unauthorized
 - `404`: Conversation not found
 
 ---

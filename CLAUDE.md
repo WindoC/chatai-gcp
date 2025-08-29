@@ -86,6 +86,13 @@ This project follows a 4-phase development approach:
 - Enhanced UI with search toggle and reference display
 - Dynamic Gemini model selection with intelligent caching
 
+### Phase 4: End-to-End AES Encryption (Mandatory)
+- AES-256-GCM encryption with Web Crypto API on frontend
+- Python cryptography backend with zero-knowledge architecture 
+- Always-on encryption for all chat and conversation endpoints
+- No fallback to unencrypted communication allowed
+- SHA256 key validation between frontend/backend
+- Base64 transport encoding for encrypted payloads
 
 ## Development Commands
 
@@ -139,13 +146,15 @@ This project follows a 4-phase development approach:
 - `PASSWORD_HASH` - SHA256 hash of user password
 - `AUTH_RATE_LIMIT` - Authentication rate limit per minute (default: 10)
 - `CHAT_RATE_LIMIT` - Chat API rate limit per minute (default: 30)
+- `AES_KEY_HASH` - SHA256 hash of AES encryption key (mandatory for E2E encryption)
 
 ## Security Notes
 - Default password hash corresponds to "secret123"
 - Generate secure JWT secrets: `python -c "import secrets; print(secrets.token_hex(32))"`
 - Generate password hashes: `python -c "import hashlib; print(hashlib.sha256('password'.encode()).hexdigest())"`
+- Generate AES key hashes: `python -c "import secrets, hashlib; key=secrets.token_hex(32); print(f'AES Key: {key}'); print(f'Key Hash: {hashlib.sha256(key.encode()).hexdigest()}')"`
 
-## Current Implementation Status (Phase 3 Complete with AI Grounding)
+## Current Implementation Status (Phase 4: E2E Encryption)
 
 ### Dynamic Model Selection Features
 - **Real-time Model Discovery**: Queries Google AI API for all available models
@@ -161,6 +170,13 @@ This project follows a 4-phase development approach:
 - **Citation Processing**: Backend processes inline citations for grounded responses
 - **Reference Management**: Structured reference data with clickable links
 - **UI Enhancements**: Search toggle button and grounding indicators
+
+### End-to-End Encryption Features (Always Active)
+- **AES-256-GCM Encryption**: Industry-standard encryption with random IV per payload
+- **Zero-Knowledge Architecture**: Server never sees plaintext messages or conversation data
+- **Key Hash Validation**: SHA256 key validation between frontend and backend
+- **Always-On Encryption**: No user control to disable, no fallback to unencrypted communication
+- **Web Crypto API**: Browser-native encryption implementation on frontend
 
 ### Grounding Implementation Details
 - **Backend URL Detection**: `r'https?://[^\s<>"{}|\\^`\[\]]+[^\s<>"{}|\\^`\[\].,;:!?)]'`
