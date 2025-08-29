@@ -20,6 +20,10 @@ The following endpoints require end-to-end encryption and will reject unencrypte
 - `POST /api/chat/{conversation_id}` - Continue existing chat  
 - `GET /api/conversations/` - List conversations
 - `GET /api/conversations/{conversation_id}` - Get specific conversation
+- `POST /api/conversations/{conversation_id}/star` - Star/unstar conversation
+- `PATCH /api/conversations/{conversation_id}/title` - Rename conversation
+- `DELETE /api/conversations/nonstarred` - Bulk delete non-starred conversations
+- `DELETE /api/conversations/{conversation_id}` - Delete specific conversation
 
 ### Encryption Requirements:
 
@@ -433,7 +437,14 @@ Bulk delete all non-starred conversations.
 
 **Headers:** `Authorization: Bearer <access_token>`
 
-**Response (200):**
+**Response (200) - Encrypted:**
+```json
+{
+  "encrypted_data": "base64_encoded_encrypted_payload"
+}
+```
+
+**Decrypted Response Data:**
 ```json
 {
   "success": true,
