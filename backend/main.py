@@ -9,6 +9,7 @@ from routers import chat_router, conversations_router
 from routers.auth import router as auth_router
 from routers.models import router as models_router
 from middleware.security_middleware import add_security_headers, rate_limit_middleware
+from middleware.encryption_middleware import EncryptionMiddleware
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -34,6 +35,9 @@ app = FastAPI(
 # Add security middleware
 app.middleware("http")(add_security_headers)
 app.middleware("http")(rate_limit_middleware)
+
+# Add encryption middleware
+app.add_middleware(EncryptionMiddleware)
 
 # Configure CORS
 app.add_middleware(

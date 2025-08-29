@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Query, Depends
+from fastapi import APIRouter, HTTPException, Query, Depends, Request
 from typing import Optional
 import logging
 from models import ConversationList, Conversation, APIResponse, StarRequest, RenameRequest
@@ -80,18 +80,24 @@ async def get_conversation(conversation_id: str, current_user: TokenData = Depen
 
 
 @router.post("/{conversation_id}/star", response_model=APIResponse)
-async def star_conversation(conversation_id: str, star_request: StarRequest, current_user: TokenData = Depends(get_current_user)):
+async def star_conversation(conversation_id: str, request: Request, current_user: TokenData = Depends(get_current_user)):
     """
     Star or unstar a conversation
     
     Args:
         conversation_id: The conversation ID
-        star_request: StarRequest containing starred boolean
+        request: FastAPI request object with decrypted data
         
     Returns:
         APIResponse: Success response
     """
     try:
+        # Get decrypted data from middleware
+        if not hasattr(request.state, 'decrypted_data'):
+            raise HTTPException(status_code=400, detail="Encrypted payload required")
+        
+        decrypted_data = request.state.decrypted_data
+        star_request = StarRequest(**decrypted_data)
         starred = star_request.starred
         logger.info(f"{'Starring' if starred else 'Unstarring'} conversation: {conversation_id}")
         
@@ -113,18 +119,24 @@ async def star_conversation(conversation_id: str, star_request: StarRequest, cur
 
 
 @router.patch("/{conversation_id}/title", response_model=APIResponse)
-async def rename_conversation(conversation_id: str, rename_request: RenameRequest, current_user: TokenData = Depends(get_current_user)):
+async def rename_conversation(conversation_id: str, request: Request, current_user: TokenData = Depends(get_current_user)):
     """
     Rename a conversation
     
     Args:
         conversation_id: The conversation ID
-        rename_request: RenameRequest containing new title
+        request: FastAPI request object with decrypted data
         
     Returns:
         APIResponse: Success response
     """
     try:
+        # Get decrypted data from middleware
+        if not hasattr(request.state, 'decrypted_data'):
+            raise HTTPException(status_code=400, detail="Encrypted payload required")
+        
+        decrypted_data = request.state.decrypted_data
+        rename_request = RenameRequest(**decrypted_data)
         title = rename_request.title.strip()
         logger.info(f"Renaming conversation {conversation_id} to '{title}'")
         

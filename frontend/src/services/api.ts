@@ -1,4 +1,5 @@
 import { Conversation, ConversationSummary, ChatRequest } from '../types';
+import EncryptionService, { EncryptedPayload } from './encryptionService';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
@@ -57,7 +58,7 @@ export class APIService {
   }
 
   async getConversations(limit: number = 50, offset: number = 0): Promise<ConversationSummary[]> {
-    const response = await fetch(`${API_BASE_URL}/api/conversations?limit=${limit}&offset=${offset}`, {
+    const response = await fetch(`${API_BASE_URL}/api/conversations/?limit=${limit}&offset=${offset}`, {
       headers: this.getAuthHeaders(),
     });
     
@@ -66,8 +67,22 @@ export class APIService {
       throw new Error('Failed to fetch conversations');
     }
     
-    const data = await response.json();
-    return data.conversations;
+    const encryptedData: EncryptedPayload = await response.json();
+    
+    // Decrypt the response if encryption is available
+    if (EncryptionService.isAvailable()) {
+      try {
+        const decryptedData = await EncryptionService.decryptResponse(encryptedData);
+        return decryptedData.conversations;
+      } catch (error) {
+        console.error('Failed to decrypt conversations response:', error);
+        throw new Error('Failed to decrypt conversations data');
+      }
+    } else {
+      // Fallback for development - treat as unencrypted
+      console.warn('Encryption not available - treating response as unencrypted');
+      return (encryptedData as any).conversations || [];
+    }
   }
 
   async getConversation(conversationId: string): Promise<Conversation> {
@@ -80,7 +95,21 @@ export class APIService {
       throw new Error('Failed to fetch conversation');
     }
     
-    return response.json();
+    const encryptedData: EncryptedPayload = await response.json();
+    
+    // Decrypt the response if encryption is available
+    if (EncryptionService.isAvailable()) {
+      try {
+        return await EncryptionService.decryptResponse(encryptedData);
+      } catch (error) {
+        console.error('Failed to decrypt conversation response:', error);
+        throw new Error('Failed to decrypt conversation data');
+      }
+    } else {
+      // Fallback for development - treat as unencrypted
+      console.warn('Encryption not available - treating response as unencrypted');
+      return encryptedData as any;
+    }
   }
 
   async deleteConversation(conversationId: string): Promise<void> {
@@ -96,10 +125,26 @@ export class APIService {
   }
 
   async starConversation(conversationId: string, starred: boolean): Promise<void> {
+    // Encrypt the payload if encryption is available
+    let requestBody: string;
+    if (EncryptionService.isAvailable()) {
+      try {
+        const encryptedPayload = await EncryptionService.encryptRequest({ starred });
+        requestBody = JSON.stringify(encryptedPayload);
+      } catch (error) {
+        console.error('Failed to encrypt star request:', error);
+        throw new Error('Failed to encrypt request data');
+      }
+    } else {
+      // Fallback for development
+      console.warn('Encryption not available - sending unencrypted request');
+      requestBody = JSON.stringify({ starred });
+    }
+
     const response = await fetch(`${API_BASE_URL}/api/conversations/${conversationId}/star`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
-      body: JSON.stringify({ starred }),
+      body: requestBody,
     });
     
     if (!response.ok) {
@@ -109,10 +154,26 @@ export class APIService {
   }
 
   async renameConversation(conversationId: string, title: string): Promise<void> {
+    // Encrypt the payload if encryption is available
+    let requestBody: string;
+    if (EncryptionService.isAvailable()) {
+      try {
+        const encryptedPayload = await EncryptionService.encryptRequest({ title });
+        requestBody = JSON.stringify(encryptedPayload);
+      } catch (error) {
+        console.error('Failed to encrypt rename request:', error);
+        throw new Error('Failed to encrypt request data');
+      }
+    } else {
+      // Fallback for development
+      console.warn('Encryption not available - sending unencrypted request');
+      requestBody = JSON.stringify({ title });
+    }
+
     const response = await fetch(`${API_BASE_URL}/api/conversations/${conversationId}/title`, {
       method: 'PATCH',
       headers: this.getAuthHeaders(),
-      body: JSON.stringify({ title }),
+      body: requestBody,
     });
     
     if (!response.ok) {
@@ -147,6 +208,22 @@ export class APIService {
       model
     };
     
+    // Encrypt the payload if encryption is available
+    let requestBody: string;
+    if (EncryptionService.isAvailable()) {
+      try {
+        const encryptedPayload = await EncryptionService.encryptRequest(chatRequest);
+        requestBody = JSON.stringify(encryptedPayload);
+      } catch (error) {
+        console.error('Failed to encrypt chat request:', error);
+        throw new Error('Failed to encrypt request data');
+      }
+    } else {
+      // Fallback for development
+      console.warn('Encryption not available - sending unencrypted request');
+      requestBody = JSON.stringify(chatRequest);
+    }
+    
     // Send the POST request and get the streaming response
     const headers = {
       ...this.getAuthHeaders(),
@@ -156,7 +233,7 @@ export class APIService {
     const response = await fetch(url, {
       method: 'POST',
       headers,
-      body: JSON.stringify(chatRequest),
+      body: requestBody,
     });
 
     if (!response.ok) {
@@ -219,7 +296,27 @@ export class APIService {
           
           for (const line of lines) {
             if (line.startsWith('data: ')) {
-              const data = line.slice(6);
+              let data = line.slice(6);
+              
+              try {
+                // Parse the event data
+                const eventData = JSON.parse(data);
+                
+                // Handle encrypted final events
+                if (eventData.type === 'encrypted_done' && EncryptionService.isAvailable()) {
+                  try {
+                    const decryptedData = await EncryptionService.decryptData(eventData.encrypted_data);
+                    // Replace with decrypted data and change type back to 'done'
+                    data = JSON.stringify({ ...decryptedData, type: 'done' });
+                  } catch (error) {
+                    console.error('Failed to decrypt final event data:', error);
+                    // Continue with encrypted event - client will handle error
+                  }
+                }
+              } catch (error) {
+                // Not JSON or decryption failed, continue with original data
+              }
+              
               const event = new MessageEvent('message', { data });
               customEventSource.dispatchEvent(event);
             }

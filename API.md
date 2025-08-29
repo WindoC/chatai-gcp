@@ -12,6 +12,54 @@ All protected endpoints require JWT token in Authorization header:
 Authorization: Bearer <access_token>
 ```
 
+## End-to-End Encryption
+The following endpoints require end-to-end encryption and will reject unencrypted traffic:
+
+### Encrypted Endpoints:
+- `POST /api/chat/` - Start new chat
+- `POST /api/chat/{conversation_id}` - Continue existing chat  
+- `GET /api/conversations/` - List conversations
+- `GET /api/conversations/{conversation_id}` - Get specific conversation
+
+### Encryption Requirements:
+
+**Request Format for POST/PATCH endpoints:**
+```
+Authorization: Bearer <access_token>
+Content-Type: application/json
+
+{
+  "encrypted_data": "base64_encoded_encrypted_payload"
+}
+```
+
+**Response Format:**
+```json
+{
+  "encrypted_data": "base64_encoded_encrypted_response"
+}
+```
+
+**For SSE streaming (chat endpoints):**
+- All streaming chunks are fully encrypted as `encrypted_chunk` events
+- Final event with metadata is encrypted as `encrypted_done` type
+- Complete end-to-end encryption for all chat content
+
+**Encryption Details:**
+- Algorithm: AES-256-GCM with SHA256 key derivation
+- Key source: Server-side secret only (AES_KEY_HASH environment variable)
+- Key derivation: SHA256 hash of server secret
+- Nonce: 12 random bytes per encryption
+- Payload format: base64(nonce + ciphertext)
+- Security: Pure server-side encryption, no client key material
+
+**Error Responses for Encryption:**
+- `400 ENCRYPTION_PAYLOAD_MISSING`: No encrypted payload in request body
+- `400 ENCRYPTION_FORMAT_INVALID`: Payload missing 'encrypted_data' field
+- `400 DECRYPTION_FAILED`: Unable to decrypt payload
+- `500 ENCRYPTION_CONFIG_ERROR`: Server encryption not configured
+- `500 RESPONSE_ENCRYPTION_FAILED`: Server failed to encrypt response
+
 ## Common Response Format
 
 ### Success Response
@@ -123,7 +171,14 @@ Start a new conversation with streaming response.
 - `Authorization: Bearer <access_token>`
 - `Accept: text/event-stream` (for SSE)
 
-**Request Body:**
+**Request Body (Encrypted):**
+```json
+{
+  "encrypted_data": "base64_encoded_payload"
+}
+```
+
+**Decrypted Payload Structure:**
 ```json
 {
   "message": "string",
@@ -140,15 +195,17 @@ Connection: keep-alive
 
 data: {"type": "conversation_start"}
 
-data: {"type": "chunk", "content": "Hello"}
+data: {"type": "encrypted_chunk", "encrypted_data": "base64_encrypted_chunk1"}
 
-data: {"type": "chunk", "content": " there!"}
+data: {"type": "encrypted_chunk", "encrypted_data": "base64_encrypted_chunk2"}
 
-data: {"type": "done", "conversation_id": "uuid", "references": [...], "grounded": true}
+data: {"type": "encrypted_done", "encrypted_data": "base64_encrypted_metadata"}
 ```
 
+**Note:** All streaming chunks and final metadata are fully encrypted for complete end-to-end security.
+
 **Error Responses:**
-- `400`: Missing or invalid message
+- `400`: Missing or invalid message, encryption errors
 - `401`: Unauthorized
 
 ---
@@ -160,7 +217,14 @@ Continue an existing conversation with streaming response.
 - `Authorization: Bearer <access_token>`
 - `Accept: text/event-stream`
 
-**Request Body:**
+**Request Body (Encrypted):**
+```json
+{
+  "encrypted_data": "base64_encoded_payload"
+}
+```
+
+**Decrypted Payload Structure:**
 ```json
 {
   "message": "string",
@@ -173,7 +237,7 @@ Continue an existing conversation with streaming response.
 
 **Error Responses:**
 - `404`: Conversation not found
-- `400`: Invalid message format
+- `400`: Invalid message format, encryption errors
 
 ## 3. Models Endpoint
 
@@ -227,7 +291,14 @@ List all conversations for the user.
 - `offset` (optional): Offset for pagination (default: 0)
 - `starred` (optional): Filter by starred status (true/false)
 
-**Response (200):**
+**Response (200 - Encrypted):**
+```json
+{
+  "encrypted_data": "base64_encoded_response"
+}
+```
+
+**Decrypted Response Structure:**
 ```json
 {
   "conversations": [
@@ -253,7 +324,14 @@ Get full conversation with all messages.
 
 **Headers:** `Authorization: Bearer <access_token>`
 
-**Response (200):**
+**Response (200 - Encrypted):**
+```json
+{
+  "encrypted_data": "base64_encoded_response"
+}
+```
+
+**Decrypted Response Structure:**
 ```json
 {
   "conversation_id": "uuid",
@@ -419,6 +497,13 @@ Get current user information.
 - `CONV_ACCESS_DENIED`: User does not have access to conversation
 - `CONV_DELETE_FAILED`: Failed to delete conversation
 - `CONV_UPDATE_FAILED`: Failed to update conversation
+
+### Encryption Errors
+- `ENCRYPTION_PAYLOAD_MISSING`: No encrypted payload in request body
+- `ENCRYPTION_FORMAT_INVALID`: Payload missing 'encrypted_data' field
+- `DECRYPTION_FAILED`: Unable to decrypt payload
+- `ENCRYPTION_CONFIG_ERROR`: Server encryption not configured
+- `RESPONSE_ENCRYPTION_FAILED`: Server failed to encrypt response
 
 ### General Errors
 - `VALIDATION_ERROR`: Request validation failed

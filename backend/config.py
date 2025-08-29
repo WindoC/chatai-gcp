@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     auth_rate_limit: int = 10  # requests per minute
     chat_rate_limit: int = 30  # requests per minute
     
+    # Encryption configuration
+    aes_key_hash: Optional[str] = None
+    
     class Config:
         env_file = ".env"
         case_sensitive = False
