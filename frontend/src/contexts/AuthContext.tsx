@@ -18,6 +18,7 @@ interface AuthContextType extends AuthState {
   login: (username: string, password: string) => Promise<boolean>;
   logout: () => void;
   clearError: () => void;
+  getToken: () => string | null;
 }
 
 type AuthAction =
@@ -277,6 +278,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         login,
         logout,
         clearError,
+        getToken: getAccessToken,
       }}
     >
       {children}

@@ -6,12 +6,15 @@ import { ThemeToggle } from './components/ThemeToggle';
 import { EditableTitle } from './components/EditableTitle';
 import { ModelSelector } from './components/ModelSelector';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import EncryptionKeyPrompt from './components/EncryptionKeyPrompt';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { EncryptionProvider, useEncryption } from './contexts/EncryptionContext';
 import { apiService } from './services/api';
 import { Message, ConversationSummary, SSEEvent } from './types';
 
 function ChatInterface() {
   const { logout } = useAuth();
+  const { isEncryptionReady } = useEncryption();
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [currentConversation, setCurrentConversation] = useState<string | null>(null);
   const [currentConversationTitle, setCurrentConversationTitle] = useState<string | null>(null);
@@ -33,8 +36,11 @@ function ChatInterface() {
   useEffect(scrollToBottom, [messages, streamingMessage]);
 
   useEffect(() => {
-    loadConversations();
-  }, []);
+    // Only load conversations when encryption is ready
+    if (isEncryptionReady) {
+      loadConversations();
+    }
+  }, [isEncryptionReady]);
 
   const loadConversations = async () => {
     try {
@@ -49,6 +55,11 @@ function ChatInterface() {
   };
 
   const loadConversation = async (conversationId: string) => {
+    if (!isEncryptionReady) {
+      console.error('Encryption not ready');
+      return;
+    }
+    
     try {
       const conversation = await apiService.getConversation(conversationId);
       setMessages(conversation.messages);
@@ -73,6 +84,12 @@ function ChatInterface() {
 
   const sendMessage = async (messageText: string, enableSearch = false) => {
     if (isStreaming) return;
+    
+    // Check if encryption is ready
+    if (!isEncryptionReady) {
+      console.error('Encryption not ready');
+      return;
+    }
 
     // Add user message to UI immediately
     const userMessage: Message = {
@@ -300,7 +317,7 @@ function ChatInterface() {
         onDeleteConversation={deleteConversation}
         onStarConversation={starConversation}
         onBulkDeleteNonstarred={bulkDeleteNonstarred}
-        loading={isLoading}
+        loading={isLoading || !isEncryptionReady}
       />
 
       {/* Main chat area */}
@@ -427,8 +444,14 @@ function ChatInterface() {
         {/* Input */}
         <ChatInput
           onSendMessage={sendMessage}
-          disabled={isStreaming}
-          placeholder={isStreaming ? "AI is responding..." : "Type your message..."}
+          disabled={isStreaming || !isEncryptionReady}
+          placeholder={
+            !isEncryptionReady 
+              ? "Enter encryption key to continue..." 
+              : isStreaming 
+                ? "AI is responding..." 
+                : "Type your message..."
+          }
           shouldFocus={shouldFocusInput}
           onFocused={() => setShouldFocusInput(false)}
         />
@@ -440,9 +463,12 @@ function ChatInterface() {
 function App() {
   return (
     <AuthProvider>
-      <ProtectedRoute>
-        <ChatInterface />
-      </ProtectedRoute>
+      <EncryptionProvider>
+        <ProtectedRoute>
+          <ChatInterface />
+          <EncryptionKeyPrompt />
+        </ProtectedRoute>
+      </EncryptionProvider>
     </AuthProvider>
   );
 }

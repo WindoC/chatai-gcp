@@ -44,12 +44,16 @@ export interface ConversationSummary {
   preview?: string;
 }
 
+export interface EncryptedPayload {
+  encrypted_data: string;
+}
+
 export interface ChatRequest {
-  message: string;
+  message?: string; // Optional for encrypted requests
   enable_search?: boolean;
   url_context?: string[];
   model?: string;
-  encrypted?: boolean;
+  encrypted_payload?: EncryptedPayload;
 }
 
 export interface SSEEvent {

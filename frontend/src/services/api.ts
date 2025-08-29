@@ -1,6 +1,20 @@
 import { Conversation, ConversationSummary, ChatRequest } from '../types';
+import { encryptionService } from './encryption';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+
+// Global reference to encryption failure handler
+let encryptionFailureHandler: (() => void) | null = null;
+
+export const setEncryptionFailureHandler = (handler: () => void) => {
+  encryptionFailureHandler = handler;
+};
+
+const handleDecryptionFailure = () => {
+  if (encryptionFailureHandler) {
+    encryptionFailureHandler();
+  }
+};
 
 export class APIService {
   private static instance: APIService;
@@ -57,7 +71,11 @@ export class APIService {
   }
 
   async getConversations(limit: number = 50, offset: number = 0): Promise<ConversationSummary[]> {
-    const response = await fetch(`${API_BASE_URL}/api/conversations?limit=${limit}&offset=${offset}`, {
+    if (!encryptionService.isInitialized()) {
+      throw new Error('Encryption not initialized');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/conversations/?limit=${limit}&offset=${offset}`, {
       headers: this.getAuthHeaders(),
     });
     
@@ -66,11 +84,31 @@ export class APIService {
       throw new Error('Failed to fetch conversations');
     }
     
-    const data = await response.json();
-    return data.conversations;
+    // Response is encrypted base64 string
+    const encryptedData = await response.text();
+    console.log('Backend response for conversations:', {
+      status: response.status,
+      statusText: response.statusText,
+      contentType: response.headers.get('content-type'),
+      dataLength: encryptedData.length,
+      dataPreview: encryptedData.substring(0, 100) + (encryptedData.length > 100 ? '...' : '')
+    });
+    
+    const decryptResult = await encryptionService.decrypt(encryptedData);
+    
+    if (!decryptResult.success) {
+      handleDecryptionFailure();
+      throw new Error('Failed to decrypt conversations - invalid key');
+    }
+    
+    return decryptResult.data.conversations;
   }
 
   async getConversation(conversationId: string): Promise<Conversation> {
+    if (!encryptionService.isInitialized()) {
+      throw new Error('Encryption not initialized');
+    }
+
     const response = await fetch(`${API_BASE_URL}/api/conversations/${conversationId}`, {
       headers: this.getAuthHeaders(),
     });
@@ -80,7 +118,16 @@ export class APIService {
       throw new Error('Failed to fetch conversation');
     }
     
-    return response.json();
+    // Response is encrypted base64 string
+    const encryptedData = await response.text();
+    const decryptResult = await encryptionService.decrypt(encryptedData);
+    
+    if (!decryptResult.success) {
+      handleDecryptionFailure();
+      throw new Error('Failed to decrypt conversation - invalid key');
+    }
+    
+    return decryptResult.data;
   }
 
   async deleteConversation(conversationId: string): Promise<void> {
@@ -141,10 +188,20 @@ export class APIService {
       ? `${API_BASE_URL}/api/chat/${conversationId}`
       : `${API_BASE_URL}/api/chat/`;
     
-    const chatRequest: ChatRequest = { 
+    // Encrypt the request payload
+    const payloadData = { 
       message, 
       enable_search: enableSearch,
       model
+    };
+    
+    const encryptResult = await encryptionService.encrypt(payloadData);
+    if (!encryptResult.success) {
+      throw new Error('Failed to encrypt message');
+    }
+    
+    const chatRequest: ChatRequest = {
+      encrypted_payload: encryptResult.encryptedPayload
     };
     
     // Send the POST request and get the streaming response
