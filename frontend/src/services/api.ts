@@ -193,8 +193,21 @@ export class APIService {
       throw new Error('Failed to bulk delete conversations');
     }
     
-    const data = await response.json();
-    return data.data.deleted_count;
+    const encryptedData = await response.json();
+    
+    // Decrypt the response if encryption is available
+    if (EncryptionService.isAvailable()) {
+      try {
+        const decryptedData = await EncryptionService.decryptResponse(encryptedData);
+        return decryptedData.data.deleted_count;
+      } catch (error) {
+        console.error('Failed to decrypt bulk delete response:', error);
+        throw new Error('Failed to decrypt bulk delete data');
+      }
+    }
+    
+    // Fallback for unencrypted response (should not happen in production)
+    return encryptedData.data.deleted_count;
   }
 
   async createChatStream(message: string, conversationId?: string, enableSearch = false, model = 'gemini-2.5-flash'): Promise<EventSource> {
