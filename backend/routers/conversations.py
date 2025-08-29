@@ -1,17 +1,64 @@
 from fastapi import APIRouter, HTTPException, Query, Depends
 from typing import Optional
 import logging
-from models import ConversationList, Conversation, APIResponse, StarRequest, RenameRequest
+from models import ConversationList, Conversation, APIResponse, StarRequest, RenameRequest, EncryptedPayload
 from services import firestore_service
+from services.encryption_service import encryption_service
 from middleware.auth_middleware import get_current_user
 from services.auth_service import TokenData
+from config import settings
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/conversations", tags=["conversations"])
 
 
-@router.get("/", response_model=ConversationList)
+def decrypt_request_payload(encrypted_payload: EncryptedPayload) -> dict:
+    """
+    Decrypt encrypted request payload
+    
+    Args:
+        encrypted_payload: Encrypted payload with key hash
+        
+    Returns:
+        dict: Decrypted request data
+        
+    Raises:
+        HTTPException: If decryption fails or key is invalid
+    """
+    # Validate AES key hash
+    if not encryption_service.validate_aes_key_hash(encrypted_payload.key_hash):
+        raise HTTPException(status_code=401, detail="Invalid encryption key")
+    
+    try:
+        # Derive key and decrypt
+        aes_key = encryption_service.derive_key_from_hash(encrypted_payload.key_hash)
+        return encryption_service.decrypt_payload(encrypted_payload.encrypted_data, aes_key)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Decryption failed")
+
+
+def encrypt_response(response_data: dict) -> str:
+    """
+    Encrypt response data using server's AES key
+    
+    Args:
+        response_data: Data to encrypt
+        
+    Returns:
+        str: Base64 encoded encrypted response
+    """
+    if not settings.aes_key_hash:
+        raise HTTPException(
+            status_code=500,
+            detail="Server encryption not configured"
+        )
+    
+    aes_key = encryption_service.derive_key_from_hash(settings.aes_key_hash)
+    return encryption_service.encrypt_response(response_data, aes_key)
+
+
+@router.get("/", response_model=str)
 async def list_conversations(
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
@@ -19,7 +66,7 @@ async def list_conversations(
     current_user: TokenData = Depends(get_current_user)
 ):
     """
-    List conversations with pagination
+    List conversations with pagination (encrypted response)
     
     Args:
         limit: Number of conversations to return (1-100)
@@ -27,7 +74,7 @@ async def list_conversations(
         starred: Filter by starred status (optional)
         
     Returns:
-        ConversationList: List of conversation summaries
+        str: Encrypted conversation list as base64 string
     """
     try:
         logger.info(f"Listing conversations: limit={limit}, offset={offset}, starred={starred}")
@@ -41,27 +88,40 @@ async def list_conversations(
         # Check if there are more conversations
         has_more = len(conversations) == limit
         
-        return ConversationList(
+        conversation_list = ConversationList(
             conversations=conversations,
             total=len(conversations),
             has_more=has_more
         )
         
+        # Encrypt the response using server's key
+        response_dict = conversation_list.model_dump()
+        try:
+            return encrypt_response(response_dict)
+        except ValueError as ve:
+            logger.error(f"Encryption failed: {ve}")
+            raise HTTPException(status_code=500, detail="Server encryption error")
+        
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error listing conversations: {e}")
         raise HTTPException(status_code=500, detail="Failed to list conversations")
 
 
-@router.get("/{conversation_id}", response_model=Conversation)
-async def get_conversation(conversation_id: str, current_user: TokenData = Depends(get_current_user)):
+@router.get("/{conversation_id}", response_model=str)
+async def get_conversation(
+    conversation_id: str,
+    current_user: TokenData = Depends(get_current_user)
+):
     """
-    Get a specific conversation with all messages
+    Get a specific conversation with all messages (encrypted response)
     
     Args:
         conversation_id: The conversation ID
         
     Returns:
-        Conversation: Complete conversation with messages
+        str: Encrypted conversation data as base64 string
     """
     try:
         logger.info(f"Getting conversation: {conversation_id}")
@@ -70,7 +130,13 @@ async def get_conversation(conversation_id: str, current_user: TokenData = Depen
         if not conversation:
             raise HTTPException(status_code=404, detail="Conversation not found")
         
-        return conversation
+        # Encrypt the response using server's key
+        response_dict = conversation.model_dump()
+        try:
+            return encrypt_response(response_dict)
+        except ValueError as ve:
+            logger.error(f"Encryption failed: {ve}")
+            raise HTTPException(status_code=500, detail="Server encryption error")
         
     except HTTPException:
         raise

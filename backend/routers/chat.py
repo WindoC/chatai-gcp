@@ -3,15 +3,60 @@ from fastapi.responses import StreamingResponse
 import json
 import logging
 import asyncio
-from typing import AsyncGenerator, Optional, List
-from models import ChatRequest, Message, MessageRole
+from typing import AsyncGenerator, Optional, List, Dict, Any
+from models import ChatRequest, Message, MessageRole, EncryptedPayload
 from services import gemini_service, firestore_service
+from services.encryption_service import encryption_service
 from middleware.auth_middleware import get_current_user
 from services.auth_service import TokenData
+from config import settings
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
+
+
+def decrypt_chat_request(chat_request: ChatRequest) -> Dict[str, Any]:
+    """
+    Decrypt encrypted chat request payload using server's AES key
+    
+    Args:
+        chat_request: Chat request with encrypted payload
+        
+    Returns:
+        Dict[str, Any]: Decrypted request data
+        
+    Raises:
+        HTTPException: If encryption is missing or decryption fails
+    """
+    # Encryption is now required
+    if not chat_request.encrypted_payload:
+        raise HTTPException(
+            status_code=400,
+            detail="Encrypted payload required"
+        )
+    
+    try:
+        # Use server's AES key hash from environment
+        if not settings.aes_key_hash:
+            raise HTTPException(
+                status_code=500,
+                detail="Server encryption not configured"
+            )
+        
+        # Derive key and decrypt using server's key
+        aes_key = encryption_service.derive_key_from_hash(settings.aes_key_hash)
+        decrypted_data = encryption_service.decrypt_payload(
+            chat_request.encrypted_payload.encrypted_data, 
+            aes_key
+        )
+        return decrypted_data
+        
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail="Decryption failed - invalid key or corrupted data"
+        )
 
 
 async def create_sse_stream(message: str, conversation_id: str = None, enable_search: bool = False, model: str = "gemini-2.5-flash") -> AsyncGenerator[str, None]:
@@ -130,10 +175,16 @@ async def start_chat(
         StreamingResponse: Server-Sent Events stream
     """
     try:
-        logger.info(f"Starting new chat with message: {chat_request.message[:100]}...")
+        # Decrypt the request payload
+        decrypted_data = decrypt_chat_request(chat_request)
+        message = decrypted_data.get("message", "")
+        enable_search = decrypted_data.get("enable_search", False)
+        model = decrypted_data.get("model", "gemini-2.5-flash")
+        
+        logger.info(f"Starting new chat with message: {message[:100]}...")
         
         return StreamingResponse(
-            create_sse_stream(chat_request.message, enable_search=chat_request.enable_search, model=chat_request.model),
+            create_sse_stream(message, enable_search=enable_search, model=model),
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",
@@ -169,7 +220,13 @@ async def continue_chat(
         StreamingResponse: Server-Sent Events stream
     """
     try:
-        logger.info(f"Continuing chat {conversation_id} with message: {chat_request.message[:100]}...")
+        # Decrypt the request payload
+        decrypted_data = decrypt_chat_request(chat_request)
+        message = decrypted_data.get("message", "")
+        enable_search = decrypted_data.get("enable_search", False)
+        model = decrypted_data.get("model", "gemini-2.5-flash")
+        
+        logger.info(f"Continuing chat {conversation_id} with message: {message[:100]}...")
         
         # Verify conversation exists
         conversation = await firestore_service.get_conversation(conversation_id)
@@ -177,7 +234,7 @@ async def continue_chat(
             raise HTTPException(status_code=404, detail="Conversation not found")
         
         return StreamingResponse(
-            create_sse_stream(chat_request.message, conversation_id, chat_request.enable_search, chat_request.model),
+            create_sse_stream(message, conversation_id, enable_search, model),
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",
