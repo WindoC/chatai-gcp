@@ -40,22 +40,30 @@ class Reference(BaseModel):
     snippet: Optional[str] = None
 
 
+class EncryptedPayload(BaseModel):
+    """Encrypted payload model"""
+    encrypted_data: str  # Base64 encoded encrypted payload
+
+
 class ChatRequest(BaseModel):
     """Chat request model"""
-    message: str = Field(..., min_length=1, max_length=4000)
+    message: Optional[str] = None  # Only used for non-encrypted requests
     enable_search: bool = False  # Google Search grounding
     url_context: Optional[List[str]] = None  # URL context for enhanced responses
     model: str = "gemini-2.5-flash"  # Selected Gemini model
+    encrypted_payload: Optional[EncryptedPayload] = None  # Encrypted request data
 
 
 class StarRequest(BaseModel):
     """Star/unstar request model"""
-    starred: bool
+    starred: Optional[bool] = None  # Only used for non-encrypted requests
+    encrypted_payload: Optional[EncryptedPayload] = None
 
 
 class RenameRequest(BaseModel):
     """Rename conversation request model"""
-    title: str = Field(..., min_length=1, max_length=100)
+    title: Optional[str] = None  # Only used for non-encrypted requests
+    encrypted_payload: Optional[EncryptedPayload] = None
 
 
 class ChatResponse(BaseModel):

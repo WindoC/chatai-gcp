@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     password_hash: Optional[str] = None
     
     
+    # Encryption configuration (mandatory E2E encryption)
+    aes_key_hash: Optional[str] = None
+    
     # Rate limiting
     auth_rate_limit: int = 10  # requests per minute
     chat_rate_limit: int = 30  # requests per minute
