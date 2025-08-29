@@ -48,19 +48,20 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isStreaming =
   };
 
   return (
-    <div className={`group flex w-full ${isUser ? 'justify-end' : 'justify-start'} mb-6`}>
-      <div
-        className={`
-          relative max-w-[75%] px-5 py-4 rounded-2xl shadow-soft transition-all duration-200
-          ${isUser 
-            ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-primary-500/20' 
-            : message.grounded 
-              ? 'bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 border border-blue-200 dark:border-blue-800 text-gray-900 dark:text-gray-100'
-              : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100'
-          }
-          ${isStreaming ? 'animate-pulse' : ''}
-        `}
-      >
+    <div className={`group flex w-full mb-6`}>
+      <div className="max-w-full sm:max-w-2xl md:max-w-3xl w-full mx-auto px-2 sm:px-4">
+        <div
+          className={`
+            relative px-5 py-4 rounded-2xl shadow-soft transition-all duration-200
+            ${isUser 
+              ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-primary-500/20 ml-auto max-w-fit' 
+              : message.grounded 
+                ? 'bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 border border-blue-200 dark:border-blue-800 text-gray-900 dark:text-gray-100 mr-auto max-w-full'
+                : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 mr-auto max-w-full'
+            }
+            ${isStreaming ? 'animate-pulse' : ''}
+          `}
+        >
         {isUser ? (
           <p className="whitespace-pre-wrap">{message.content}</p>
         ) : (
@@ -222,6 +223,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isStreaming =
             )}
           </button>
         )}
+        </div>
       </div>
     </div>
   );

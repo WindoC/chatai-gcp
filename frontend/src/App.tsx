@@ -427,8 +427,8 @@ function ChatInterface() {
       {/* Main chat area */}
       <div className="flex-1 flex flex-col md:ml-0">
         {/* Header */}
-        <header className="relative z-30 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 px-4 md:px-6 py-3 md:py-4 transition-colors duration-200">
-          <div className="flex items-center justify-between min-h-[56px]">
+        <header className="relative z-30 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 px-2 sm:px-4 md:px-6 py-2 sm:py-3 md:py-4 transition-colors duration-200">
+          <div className="flex items-center justify-between min-h-[48px] sm:min-h-[56px]">
             {/* Left section: Model selector - hidden on very small screens */}
             <div className="hidden sm:flex items-center pl-12 md:pl-0">
               <ModelSelector selectedModel={selectedModel} onModelChange={handleModelChange} />
@@ -498,8 +498,8 @@ function ChatInterface() {
         </header>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-4 md:px-6 py-3 md:py-4">
-          <div className="max-w-4xl mx-auto space-y-4 md:space-y-6 w-full">
+        <div className="flex-1 overflow-y-auto px-2 sm:px-4 md:px-6 py-3 md:py-4">
+          <div className="space-y-4 md:space-y-6 w-full">
             {messages.length === 0 && !streamingMessage && (
               <div className="text-center text-gray-600 dark:text-gray-400 mt-8 md:mt-20">
                 <div className="mb-6 md:mb-8">

@@ -50,8 +50,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   }, [shouldFocus, disabled, onFocused]);
 
   return (
-    <div className="relative z-30 border-t border-gray-200 dark:border-gray-700 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm p-4 md:p-6 transition-colors duration-200">
-      <form onSubmit={handleSubmit} className="max-w-4xl mx-auto">
+    <div className="relative z-30 border-t border-gray-200 dark:border-gray-700 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm p-2 sm:p-4 md:p-6 transition-colors duration-200">
+      <form onSubmit={handleSubmit} className="max-w-full sm:max-w-2xl md:max-w-3xl mx-auto">
         <div className="flex items-end space-x-2 md:space-x-4">
           {/* Search Toggle Button */}
           <button
