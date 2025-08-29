@@ -129,11 +129,14 @@ class EncryptionMiddleware(BaseHTTPMiddleware):
                 # Encrypt the response
                 encrypted_response = EncryptionService.encrypt_response(response_data, encryption_key)
                 
-                # Return new encrypted response
+                # Return new encrypted response (exclude Content-Length to avoid mismatch)
+                response_headers = dict(response.headers)
+                response_headers.pop('content-length', None)  # Remove Content-Length if present
+                
                 return JSONResponse(
                     content=encrypted_response,
                     status_code=response.status_code,
-                    headers=dict(response.headers)
+                    headers=response_headers
                 )
             except Exception as e:
                 return JSONResponse(
