@@ -9,6 +9,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { apiService } from './services/api';
 import EncryptionService from './services/encryptionService';
+import { AESKeyModal } from './components/AESKeyModal';
 import { Message, ConversationSummary, SSEEvent } from './types';
 
 function ChatInterface() {
@@ -24,11 +25,53 @@ function ChatInterface() {
   const [selectedModel, setSelectedModel] = useState(() => {
     return localStorage.getItem('selectedModel') || 'gemini-2.5-flash';
   });
+  const [showKeyModal, setShowKeyModal] = useState(false);
+  const [keyModalMessage, setKeyModalMessage] = useState('');
+  const [keyChangeCounter, setKeyChangeCounter] = useState(0); // For triggering re-renders
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  // Check for encryption key and prompt if needed
+  const checkEncryptionKey = (): Promise<boolean> => {
+    return new Promise((resolve) => {
+      if (EncryptionService.isAvailable()) {
+        resolve(true);
+      } else {
+        setKeyModalMessage('Enter your AES encryption key to secure your conversations:');
+        setShowKeyModal(true);
+        
+        // Set up a one-time listener for when key is set
+        const checkKey = () => {
+          if (EncryptionService.isAvailable()) {
+            setShowKeyModal(false);
+            resolve(true);
+          } else {
+            setTimeout(checkKey, 100);
+          }
+        };
+        checkKey();
+      }
+    });
+  };
+
+  const handleKeySubmit = async (key: string) => {
+    try {
+      await EncryptionService.setupEncryptionKey(key);
+      setShowKeyModal(false);
+      setKeyChangeCounter(prev => prev + 1); // Trigger re-render
+    } catch (error) {
+      console.error('Failed to setup encryption key:', error);
+      alert('Failed to setup encryption key. Please try again.');
+    }
+  };
+
+  const handleKeyCancel = () => {
+    setShowKeyModal(false);
+    // Optionally, you could prevent the user from proceeding without encryption
   };
 
   useEffect(scrollToBottom, [messages, streamingMessage]);
@@ -74,6 +117,10 @@ function ChatInterface() {
 
   const sendMessage = async (messageText: string, enableSearch = false) => {
     if (isStreaming) return;
+
+    // Check for encryption key first
+    const hasKey = await checkEncryptionKey();
+    if (!hasKey) return; // User cancelled key setup
 
     // Add user message to UI immediately
     const userMessage: Message = {
@@ -129,6 +176,13 @@ function ChatInterface() {
                   }
                 } catch (error) {
                   console.error('Failed to decrypt chunk:', error);
+                  // Stop streaming and prompt for new key
+                  setIsStreaming(false);
+                  setStreamingMessage('');
+                  eventSource.close();
+                  setKeyModalMessage('Decryption failed. Please enter your correct encryption key:');
+                  setShowKeyModal(true);
+                  return;
                 }
               }
               break;
@@ -218,6 +272,8 @@ function ChatInterface() {
                   setIsStreaming(false);
                   setStreamingMessage('');
                   eventSource.close();
+                  setKeyModalMessage('Decryption failed. Please enter your correct encryption key:');
+                  setShowKeyModal(true);
                 }
               }
               break;
@@ -400,6 +456,23 @@ function ChatInterface() {
                   </svg>
                 </button>
               )}
+              <button
+                onClick={() => {
+                  setKeyModalMessage('Update your encryption key:');
+                  setShowKeyModal(true);
+                }}
+                className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                title={EncryptionService.isAvailable() || keyChangeCounter >= 0 ? 'Update encryption key' : 'Setup encryption key'}
+              >
+                <div className="relative">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                  {(!EncryptionService.isAvailable() || keyChangeCounter < 0) && (
+                    <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></div>
+                  )}
+                </div>
+              </button>
               <ThemeToggle />
               <button
                 onClick={logout}
@@ -498,6 +571,14 @@ function ChatInterface() {
           onFocused={() => setShouldFocusInput(false)}
         />
       </div>
+
+      {/* AES Key Modal */}
+      <AESKeyModal
+        isOpen={showKeyModal}
+        onSubmit={handleKeySubmit}
+        onCancel={handleKeyCancel}
+        message={keyModalMessage}
+      />
     </div>
   );
 }
