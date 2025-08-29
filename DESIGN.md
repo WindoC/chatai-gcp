@@ -33,14 +33,14 @@
 - **Chat Interface**: Message display, input handling, streaming
 - **Conversation Sidebar**: History, starring, bulk operations
 - **Authentication**: Login form, JWT management
-- **Settings Panel**: AES key management (Phase 4)
+- **Settings Panel**: AES key management
 - **Markdown Renderer**: Code highlighting, table support
 
 #### Backend Services
 - **Authentication Service**: JWT handling, single-user validation
 - **Chat Service**: Gemini API integration, SSE streaming
 - **Conversation Service**: Firestore CRUD operations
-- **Encryption Service**: AES-GCM encryption/decryption (Phase 4)
+- **Encryption Service**: AES-GCM encryption/decryption
 
 ## 2. Data Flow
 
@@ -52,11 +52,11 @@
 4. Auto-refresh using refresh_token when access_token expires
 ```
 
-### 2.2 Chat Flow
+### 2.2 Chat Flow (Fully Encrypted)
 ```
-1. User sends message → Frontend encrypts (Phase 4) → POST /chat
-2. Backend validates JWT → Decrypts message (Phase 4) → Call Gemini API
-3. Stream response via SSE → Frontend decrypts (Phase 4) → Render markdown
+1. User sends message → Frontend encrypts → POST /chat with encrypted payload
+2. Backend validates JWT → Decrypts message → Call Gemini API
+3. Stream encrypted chunks via SSE → Frontend decrypts in real-time → Render markdown
 4. Save conversation to Firestore → Update UI with conversation ID
 ```
 
@@ -112,18 +112,26 @@ interface Message {
 - CSP headers for XSS protection
 - Rate limiting on authentication endpoints
 
-### 4.3 End-to-End Encryption (Phase 4)
+### 4.3 End-to-End Encryption (Phase 4) ✅
 ```
 Frontend (Web Crypto API):
-- AES-256-GCM encryption with random IV
-- Key derivation from user passphrase using PBKDF2
-- IV and encrypted data transmitted as base64
+- AES-256-GCM encryption with 12-byte nonce
+- SHA256 key derivation from server secret (matches backend)
+- Nonce and encrypted data transmitted as base64
+- Real-time decryption of SSE streaming chunks
 
 Backend (Python cryptography):
-- AES key validation via SHA256 hash
-- Decrypt incoming messages before Gemini API
-- Encrypt responses before transmission
-- Zero-knowledge: server never sees plaintext
+- Pure server-side key management from AES_KEY_HASH
+- SHA256 key derivation for symmetric encryption
+- All chat content encrypted (streaming chunks + metadata)
+- Middleware encryption for protected endpoints
+- Content-Length header fixes for encrypted responses
+
+Security Features:
+- No client key material or JWT involvement
+- Complete streaming encryption (all chunks)
+- No fallback to unencrypted channels
+- Server-side only encryption key management
 ```
 
 ## 5. Performance Considerations
@@ -140,12 +148,22 @@ Backend (Python cryptography):
 - Efficient SSE implementation with async generators
 - Caching of conversation metadata
 
-### 5.3 Streaming Implementation
+### 5.3 Encrypted Streaming Implementation
 ```python
-async def stream_chat_response():
-    async for chunk in gemini_client.generate_content_stream():
-        yield f"data: {json.dumps({'content': chunk.text})}\n\n"
-    yield f"data: {json.dumps({'done': True})}\n\n"
+async def stream_chat_response(message: str, encryption_key: str):
+    complete_response = await gemini_client.generate_content(message)
+    
+    # Stream encrypted chunks
+    chunk_size = 50
+    for i in range(0, len(complete_response), chunk_size):
+        chunk = complete_response[i:i + chunk_size]
+        encrypted_chunk = EncryptionService.encrypt_response({'content': chunk}, encryption_key)
+        yield f"data: {json.dumps({'type': 'encrypted_chunk', 'encrypted_data': encrypted_chunk['encrypted_data']})}\n\n"
+    
+    # Send encrypted final metadata
+    final_data = {'type': 'done', 'conversation_id': conv_id, 'references': refs}
+    encrypted_final = EncryptionService.encrypt_response(final_data, encryption_key)
+    yield f"data: {json.dumps({'type': 'encrypted_done', 'encrypted_data': encrypted_final['encrypted_data']})}\n\n"
 ```
 
 ## 6. Error Handling
@@ -153,7 +171,7 @@ async def stream_chat_response():
 ### 6.1 Frontend Error States
 - Network connectivity issues
 - Authentication failures
-- Encryption/decryption errors (Phase 4)
+- Encryption/decryption errors
 - Streaming interruptions
 - Markdown rendering errors
 

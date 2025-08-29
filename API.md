@@ -41,14 +41,16 @@ Content-Type: application/json
 ```
 
 **For SSE streaming (chat endpoints):**
-- Regular chunks are sent unencrypted for streaming performance
+- All streaming chunks are fully encrypted as `encrypted_chunk` events
 - Final event with metadata is encrypted as `encrypted_done` type
+- Complete end-to-end encryption for all chat content
 
 **Encryption Details:**
-- Algorithm: AES-256-GCM 
+- Algorithm: AES-256-GCM with SHA256 key derivation
 - Key source: Server-side secret only (AES_KEY_HASH environment variable)
+- Key derivation: SHA256 hash of server secret
 - Nonce: 12 random bytes per encryption
-- Format: base64(nonce + ciphertext)
+- Payload format: base64(nonce + ciphertext)
 - Security: Pure server-side encryption, no client key material
 
 **Error Responses for Encryption:**
@@ -193,14 +195,14 @@ Connection: keep-alive
 
 data: {"type": "conversation_start"}
 
-data: {"type": "chunk", "content": "Hello"}
+data: {"type": "encrypted_chunk", "encrypted_data": "base64_encrypted_chunk1"}
 
-data: {"type": "chunk", "content": " there!"}
+data: {"type": "encrypted_chunk", "encrypted_data": "base64_encrypted_chunk2"}
 
 data: {"type": "encrypted_done", "encrypted_data": "base64_encrypted_metadata"}
 ```
 
-**Note:** Regular chunks stream unencrypted for performance. Final metadata is encrypted as `encrypted_done` event.
+**Note:** All streaming chunks and final metadata are fully encrypted for complete end-to-end security.
 
 **Error Responses:**
 - `400`: Missing or invalid message, encryption errors
