@@ -8,6 +8,8 @@ automatic_scaling:
   max_instances: 1
   target_cpu_utilization: 0.6
 
+entrypoint: cd backend && PYTHONPATH=/workspace:/workspace/backend python -m uvicorn main:app --host 0.0.0.0 --port $PORT
+
 env_variables:
   # These will be set in Google Cloud Console for security
   GOOGLE_API_KEY: "your_gemini_api_key"
@@ -34,9 +36,34 @@ handlers:
     upload: frontend/build/favicon.ico
     secure: always
 
+  - url: /favicon.svg
+    static_files: frontend/build/favicon.svg
+    upload: frontend/build/favicon.svg
+    secure: always
+
+  - url: /chat-ai-icon.svg
+    static_files: frontend/build/chat-ai-icon.svg
+    upload: frontend/build/chat-ai-icon.svg
+    secure: always
+
+  - url: /logo192.svg
+    static_files: frontend/build/logo192.svg
+    upload: frontend/build/logo192.svg
+    secure: always
+
+  - url: /logo512.svg
+    static_files: frontend/build/logo512.svg
+    upload: frontend/build/logo512.svg
+    secure: always
+
   - url: /manifest.json
     static_files: frontend/build/manifest.json
     upload: frontend/build/manifest.json
+    secure: always
+
+  - url: /robots.txt
+    static_files: frontend/build/robots.txt
+    upload: frontend/build/robots.txt
     secure: always
 
   # Authentication routes

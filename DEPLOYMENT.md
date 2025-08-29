@@ -74,7 +74,22 @@ curl -H "Content-Type: application/json" \
 
 ## Step 3: Prepare Application for Deployment
 
-### 3.1 Update app.yaml Configuration
+### 3.1 Configure Frontend Environment Variables
+**CRITICAL**: Update the frontend environment variables for production deployment.
+
+Edit `frontend/.env.local`:
+```env
+REACT_APP_API_URL=https://YOUR_PROJECT_ID.uw.r.appspot.com
+```
+
+Replace `YOUR_PROJECT_ID` with your actual Google Cloud project ID (e.g., `https://chat-470206.uw.r.appspot.com`).
+
+**Why this is important:**
+- React environment variables are built-in at compile time
+- If you skip this step, your app will call `localhost:8000` instead of your deployed backend
+- This causes authentication and all API calls to fail in production
+
+### 3.2 Update app.yaml Configuration
 Edit the `app.yaml` file in the project root:
 
 ```yaml
@@ -143,7 +158,9 @@ handlers:
     secure: always
 ```
 
-### 3.2 Build Frontend for Production
+### 3.3 Build Frontend for Production
+**IMPORTANT**: Build the frontend AFTER updating environment variables.
+
 ```bash
 # Navigate to frontend directory
 cd frontend
@@ -151,35 +168,38 @@ cd frontend
 # Install dependencies
 npm install
 
-# Build for production
+# Build for production (this bakes in the REACT_APP_API_URL)
 npm run build
 
 # Verify build was created
 ls -la build/
+
+# Verify the build includes correct API URL (optional check)
+grep -r "chat-470206" build/ || echo "WARNING: Build might still contain localhost URLs"
 ```
 
-### 3.3 Update main.py for Production
-Ensure your `backend/main.py` handles the module structure correctly for App Engine:
+### 3.4 Prepare Backend Dependencies for App Engine
+**CRITICAL**: App Engine looks for `requirements.txt` in the project root, but your dependencies are in `backend/requirements.txt`.
 
-```python
-# Update import for App Engine
-import sys
-import os
-
-# Add the current directory to Python path
-sys.path.insert(0, os.path.dirname(__file__))
-
-from main import app
-
-# This is what App Engine looks for
-if __name__ == "__main__":
-    import uvicorn
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+Copy the backend requirements to the project root:
+```bash
+# Copy backend requirements to root for App Engine
+cp backend/requirements.txt requirements.txt
 ```
 
-### 3.4 Create requirements.txt
-Ensure your `backend/requirements.txt` has all dependencies:
+**Why this is needed:**
+- App Engine installs dependencies from root `requirements.txt`
+- Without this, you'll get "No module named uvicorn" errors
+- The backend entrypoint runs from `backend/` directory but needs root dependencies
+
+### 3.5 Verify Backend Configuration
+Your backend should be configured with:
+- `app.yaml` with proper entrypoint: `cd backend && PYTHONPATH=/workspace:/workspace/backend python -m uvicorn main:app --host 0.0.0.0 --port $PORT`
+- Root `requirements.txt` with all dependencies (copied from backend)
+- All Python modules properly structured with `__init__.py` files
+
+### 3.6 Dependencies Overview
+Your `backend/requirements.txt` should include:
 ```txt
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
@@ -223,6 +243,7 @@ Instead of putting secrets in app.yaml, use Google Cloud Console or Secret Manag
    - `PASSWORD_HASH`: SHA256 hash of your password (generate with `python -c "import hashlib; print(hashlib.sha256('your_password'.encode()).hexdigest())"`)
    - `AUTH_RATE_LIMIT`: `10`
    - `CHAT_RATE_LIMIT`: `30`
+   - `AES_KEY_HASH`: Server secret for AES key derivation (generate with `python -c "import secrets; print(secrets.token_hex(32))"`)
 
 **Option B: Secret Manager (Recommended for Production)**
 ```bash
@@ -233,11 +254,13 @@ gcloud services enable secretmanager.googleapis.com
 echo -n "your_gemini_api_key" | gcloud secrets create gemini-api-key --data-file=-
 echo -n "your_jwt_secret" | gcloud secrets create jwt-secret-key --data-file=-
 echo -n "your_password_hash" | gcloud secrets create password-hash --data-file=-
+echo -n "your_aes_server_secret" | gcloud secrets create aes-key-hash --data-file=-
 
 # Grant App Engine access to secrets
 gcloud secrets add-iam-policy-binding gemini-api-key --member="serviceAccount:YOUR_PROJECT_ID@appspot.gserviceaccount.com" --role="roles/secretmanager.secretAccessor"
 gcloud secrets add-iam-policy-binding jwt-secret-key --member="serviceAccount:YOUR_PROJECT_ID@appspot.gserviceaccount.com" --role="roles/secretmanager.secretAccessor"
 gcloud secrets add-iam-policy-binding password-hash --member="serviceAccount:YOUR_PROJECT_ID@appspot.gserviceaccount.com" --role="roles/secretmanager.secretAccessor"
+gcloud secrets add-iam-policy-binding aes-key-hash --member="serviceAccount:YOUR_PROJECT_ID@appspot.gserviceaccount.com" --role="roles/secretmanager.secretAccessor"
 ```
 
 **⚠️ Security Notes:**
@@ -286,29 +309,48 @@ gcloud logging sinks create chatai-gcp \
 gcloud app browse
 
 # Test health endpoint (public)
-curl https://YOUR_PROJECT_ID.appspot.com/health
+curl https://YOUR_PROJECT_ID.uw.r.appspot.com/health
 
 # Test authentication endpoint
-curl -X POST https://YOUR_PROJECT_ID.appspot.com/auth/login \
+curl -X POST https://YOUR_PROJECT_ID.uw.r.appspot.com/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username": "admin", "password": "your_password"}'
 
 # Test protected endpoint (should return 401 without auth)
-curl https://YOUR_PROJECT_ID.appspot.com/api/conversations/
+curl https://YOUR_PROJECT_ID.uw.r.appspot.com/api/conversations/
 
 # Test protected endpoint with authentication
 # First get token from login response above, then:
 curl -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
-     https://YOUR_PROJECT_ID.appspot.com/api/conversations/
+     https://YOUR_PROJECT_ID.uw.r.appspot.com/api/conversations/
 
-# Test API documentation (protected)
-open https://YOUR_PROJECT_ID.appspot.com/docs
+# Test API documentation (should redirect to login)
+open https://YOUR_PROJECT_ID.uw.r.appspot.com/docs
 
 # Test the web application (should show login screen)
-open https://YOUR_PROJECT_ID.appspot.com/
+open https://YOUR_PROJECT_ID.uw.r.appspot.com/
 ```
 
-### 6.2 Check Logs
+### 6.2 Frontend Verification
+**Critical**: Verify frontend is calling the correct backend URL:
+
+1. **Open your deployed app**: https://YOUR_PROJECT_ID.uw.r.appspot.com
+2. **Open browser developer tools** (F12)
+3. **Go to Network tab**
+4. **Try to login** - you should see API calls to:
+   - ✅ `https://YOUR_PROJECT_ID.uw.r.appspot.com/auth/login`
+   - ❌ NOT `http://localhost:8000/auth/login`
+
+5. **If you see localhost calls**:
+   ```bash
+   # Update environment variable
+   echo "REACT_APP_API_URL=https://YOUR_PROJECT_ID.uw.r.appspot.com" > frontend/.env.local
+   
+   # Rebuild and redeploy
+   cd frontend && npm run build && cd .. && gcloud app deploy
+   ```
+
+### 6.3 Check Logs
 ```bash
 # View recent logs
 gcloud app logs tail -s default
@@ -431,13 +473,36 @@ gcloud app deploy --promote --stop-previous-version
 - Check quotas in GCP Console → IAM & Admin → Quotas
 - Monitor usage in App Engine → Dashboard
 
+**Frontend API URL Issues:**
+```bash
+# Problem: Frontend calls localhost instead of App Engine URL
+# Solution: Check and rebuild frontend
+
+# 1. Check current frontend environment
+cat frontend/.env.local
+# Should show: REACT_APP_API_URL=https://YOUR_PROJECT_ID.uw.r.appspot.com
+
+# 2. If wrong, update it:
+echo "REACT_APP_API_URL=https://YOUR_PROJECT_ID.uw.r.appspot.com" > frontend/.env.local
+
+# 3. Rebuild frontend with correct URL
+cd frontend
+npm run build
+cd ..
+
+# 4. Redeploy
+gcloud app deploy
+
+# 5. Verify in browser console - should not see localhost:8000 requests
+```
+
 **Authentication Issues:**
 ```bash
 # Check if JWT_SECRET_KEY is set
 gcloud app versions describe VERSION_ID --service=default
 
 # Test login endpoint directly
-curl -X POST https://YOUR_PROJECT_ID.appspot.com/auth/login \
+curl -X POST https://YOUR_PROJECT_ID.uw.r.appspot.com/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username": "admin", "password": "your_password"}' \
   -v
@@ -449,11 +514,14 @@ gcloud app logs tail -s default --filter="auth"
 python -c "import hashlib; print(hashlib.sha256('your_password'.encode()).hexdigest())"
 ```
 
-**Common Auth Errors:**
+**Common Errors:**
+- **Frontend calls `localhost:8000`**: Update `frontend/.env.local` and rebuild
+- **"No module named uvicorn"**: Copy `cp backend/requirements.txt requirements.txt` and redeploy
 - `401 Unauthorized`: Check username/password and JWT_SECRET_KEY
 - `500 Internal Server Error`: Check environment variables are set
 - `422 Validation Error`: Check request format and required fields
 - `429 Too Many Requests`: Rate limiting is working (wait or increase limits)
+- **CORS errors**: Check frontend is using HTTPS URLs, not HTTP
 
 ### Performance Optimization
 
@@ -520,4 +588,23 @@ For deployment issues:
 
 ---
 
-**Next Steps**: After successful deployment, proceed with Phase 3 (Authentication) or Phase 4 (Encryption) as outlined in PLAN.md.
+## Quick Fix for localhost API URL Issue
+
+If your deployed app is calling `localhost:8000` instead of your App Engine URL:
+
+```bash
+# 1. Update frontend environment
+echo "REACT_APP_API_URL=https://YOUR_PROJECT_ID.uw.r.appspot.com" > frontend/.env.local
+
+# 2. Rebuild frontend 
+cd frontend && npm run build && cd ..
+
+# 3. Redeploy
+gcloud app deploy
+
+# 4. Verify in browser dev tools - should see App Engine URLs, not localhost
+```
+
+---
+
+**Next Steps**: Your ChatAI-GCP application with Phase 4 end-to-end encryption is now deployed and ready for production use!
