@@ -10,8 +10,6 @@ A secure AI chat web application powered by Google Gemini, built with FastAPI an
 
 **Current Status:** Fully deployed production chat application with complete end-to-end AES encryption
 
-**🌟 Live Application:** Deployed on Google App Engine
-
 ✅ **Production Features:**
 - **🔐 End-to-End AES-256-GCM Encryption**: All chat and conversation data encrypted
 - **🌐 Live Production Deployment**: Running on Google App Engine
@@ -28,17 +26,6 @@ A secure AI chat web application powered by Google Gemini, built with FastAPI an
 - **📱 Responsive Design**: Mobile-friendly interface with secure login screen
 - **⚡ Server-Sent Events**: Real-time streaming without polling (fully encrypted)
 - **📘 TypeScript**: Full type safety throughout the application
-
-**🌟 Try the Live Application:** 
-- **Production URL**: Access via your deployed App Engine URL
-- **Login Credentials**: Username: `admin`, Password: Your configured password
-- **Features**: Full end-to-end encryption, 42+ AI models, real-time chat
-- **Security**: All data encrypted with AES-256-GCM before storage
-
-**Local Development:**
-- Backend: `http://localhost:8000`
-- Frontend: `http://localhost:3000`
-- See "Development Setup" section below for local installation
 
 ## Architecture
 
