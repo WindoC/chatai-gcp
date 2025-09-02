@@ -12,7 +12,7 @@ This is a **production-deployed** secure AI chat web application with complete e
 - **Backend**: FastAPI (Python 3.13) deployed on Google App Engine
 - **AI Integration**: Google Gemini (google-genai) with 42+ available models
 - **Database**: Firestore Native with AES-256-GCM encryption
-- **Authentication**: JWT with single-user mode (Username: `antonio`)
+- **Authentication**: JWT with single-user mode (Username: `admin`)
 - **Encryption**: Complete end-to-end AES-256-GCM encryption for all data
 - **Deployment**: ✅ Production-ready on Google App Engine Standard
 

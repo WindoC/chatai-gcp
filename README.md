@@ -23,18 +23,15 @@ A secure AI chat web application powered by Google Gemini, built with FastAPI an
 - **📁 Complete Conversation Management**: CRUD, starring, bulk delete, title editing
 - **🔍 Google Search Grounding**: Web search integration with citations and references
 - **🌐 URL Context Detection**: Automatic web page context grounding
-- **💾 Encrypted Storage**: Messages stored securely with AES encryption in Firestore
 - **🔐 Security Headers**: CSP, HSTS, XSS protection, and rate limiting
 - **📝 Markdown Support**: Rich text rendering with syntax highlighting for code
 - **📱 Responsive Design**: Mobile-friendly interface with secure login screen
 - **⚡ Server-Sent Events**: Real-time streaming without polling (fully encrypted)
-- **🔧 Custom EventSource**: Robust streaming implementation with error handling
 - **📘 TypeScript**: Full type safety throughout the application
-- **☁️ Google App Engine**: Production-ready deployment with auto-scaling
 
 **🌟 Try the Live Application:** 
 - **Production URL**: Access via your deployed App Engine URL
-- **Login Credentials**: Username: `antonio`, Password: Your configured password
+- **Login Credentials**: Username: `admin`, Password: Your configured password
 - **Features**: Full end-to-end encryption, 42+ AI models, real-time chat
 - **Security**: All data encrypted with AES-256-GCM before storage
 
