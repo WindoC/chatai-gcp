@@ -2,6 +2,10 @@
 
 A secure AI chat web application powered by Google Gemini, built with FastAPI and React.
 
+## UI Overview
+
+![Main Screen](main-screen.png)
+
 ## 🚀 Phase 4 Complete - Production Deployed with End-to-End Encryption!
 
 **Current Status:** Fully deployed production chat application with complete end-to-end AES encryption
